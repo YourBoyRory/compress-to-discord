@@ -109,24 +109,47 @@ class VideoCompressor:
             subprocess.run(command)
         else:
             print(f"INFO: {file} is small enough. Skipping...")
+            exit()
         print(f"INFO: Wrote {target_path}")
 
 
+def showHelp():
+    print("\nUSAGE:\n")
+    print(f"    {sys.argv[0]} [Options] [VIDEO_PATH]\n\n")
+    print("    -h; --help                 Show this help dialog.")
+    print("    --custom [float|int]       Set the target file size. You can set this to \"25\"")
+    print("                               if you still have access to the old larger file size limit.\n\n")
+    print("PRESETS:\n")
+    print("    --nitro                    Compresses within the Discord Nitro file size limit (500MB).")
+    print("    --nitro-basic; --basic     Compresses within the Discord Nitro Basic file size limit (50MB).")
+    print("    --old                      Compresses within the old file size limit (8MB).\n")
 
 if __name__ == '__main__':
-    if "--nitro-basic" in sys.argv:
+    if "--help" in sys.argv or "-h" in sys.argv:
+        print("\n    Compress2Cord is a python script that will compress a video to fit as an attachment")
+        print("    on Discord. By default, this script will compress a provided video at 10MB, but")
+        print("    this can be customized.\n")
+        showHelp()
+        exit()
+    elif "--nitro-basic" in sys.argv or "--basic" in sys.argv:
         SIZE = 50 * 1024 * 1024
     elif "--nitro" in sys.argv:
         SIZE = 500 * 1024 * 1024
-    elif "--plus" in sys.argv:
-        SIZE = 25 * 1024 * 1024
+    elif "--custom" in sys.argv:
+        i = sys.argv.index("--custom")+1
+        SIZE = float(sys.argv[i]) * 1024 * 1024
     elif "--old" in sys.argv:
         SIZE = 8 * 1024 * 1024
     else:
         SIZE = 10 * 1024 * 1024
     try:
-        compressor = VideoCompressor(SIZE, "slow", "libx264", "aac")
-        compressor.compressVideo(os.path.abspath(sys.argv[1]))
-    except IndexError:
-        print(f"Invalid syntax: {sys.argv[0]} [filename]")
+        if len(sys.argv) > 1:
+            compressor = VideoCompressor(SIZE, "slow", "libx264", "aac")
+            compressor.compressVideo(os.path.abspath(sys.argv[-1]))
+        else:
+            print("\nERROR: Incorrect Syntax")
+            showHelp()
+    except:
+        print("\nERROR: File error")
+        showHelp()
 
