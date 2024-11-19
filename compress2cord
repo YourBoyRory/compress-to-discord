@@ -114,7 +114,16 @@ class VideoCompressor:
 
 
 if __name__ == '__main__':
-    SIZE = 10 * 1024 * 1024
+    if "--nitro-basic" in sys.argv:
+        SIZE = 50 * 1024 * 1024
+    elif "--nitro" in sys.argv:
+        SIZE = 500 * 1024 * 1024
+    elif "--plus" in sys.argv:
+        SIZE = 25 * 1024 * 1024
+    elif "--old" in sys.argv:
+        SIZE = 8 * 1024 * 1024
+    else:
+        SIZE = 10 * 1024 * 1024
     try:
         compressor = VideoCompressor(SIZE, "slow", "libx264", "aac")
         compressor.compressVideo(os.path.abspath(sys.argv[1]))
