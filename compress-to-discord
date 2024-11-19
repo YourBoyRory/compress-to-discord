@@ -5,13 +5,20 @@ import json
 import sys
 import os
 
-class CompressToDiscord:
+class VideoCompressor:
 
-    def __init__(self, file):
-        self.compressVideo(os.path.abspath(file), 10)
+    options = {}
+
+    def __init__(self, target_size_bytes, profile='slow', video_codec='libx264', audio_codec='aac'):
+        self.options = {
+            'target_size_bytes': target_size_bytes,
+            'profile': profile,
+            'video_codec': video_codec,
+            'audio_codec': audio_codec
+        }
 
     def getTargetResolution(self, target_bitrate, framerate):
-        bitrate_multiplyer =framerate/30
+        bitrate_multiplyer = framerate/30
         bitrate = target_bitrate/bitrate_multiplyer
         if bitrate > 3000000:
             return "1920x1080"
@@ -57,15 +64,16 @@ class CompressToDiscord:
         meta_data_trimmed["filesize"] = float(meta_data['format']['size'])
         return meta_data_trimmed
 
-    def compressVideo(self, file, size):
+    def compressVideo(self, file):
+        size_bytes = self.options['target_size_bytes']
         meta_data = self.getVideoInfo(file)
-        file_size = int(meta_data['filesize'] / 1048576)
+        file_size = int(meta_data['filesize']/1024/1024)
         file_bitrate = meta_data['bitrate']
         file_resolution = meta_data['resolution']
         target_path = os.path.join(os.path.dirname(file), os.path.splitext(os.path.basename(file))[0] + ".discord.mp4")
-        target_size = size * 8 * 1024 * 1024
+        target_size = size_bytes * 8
         target_audio_bitrate = 64000
-        target_bitrate = int((target_size/meta_data["duration"])*0.85) # 15% margin for margin of error
+        target_bitrate = int((target_size/meta_data["duration"])) # 10% margin for margin of error
         target_resolution = self.getTargetResolution(target_bitrate, meta_data["framerate"])
         print(f"\nINFO: Input file {file_size}MB with {int(file_bitrate/1024)}kbps @ {file_resolution}")
         if not (target_bitrate >= meta_data["bitrate"]):
@@ -74,10 +82,12 @@ class CompressToDiscord:
                 command = [
                     "ffmpeg",
                     "-i", file,
-                    "-c:v", "libx264",
+                    "-c:v", self.options['video_codec'],
                     "-b:v", str(target_bitrate),
+                    "-maxrate", str(target_bitrate),
+                    "-bufsize", "0",
                     '-s', target_resolution,
-                    "-preset", "slow",
+                    "-preset", self.options['profile'],
                     "-an",
                     target_path
                 ]
@@ -86,33 +96,28 @@ class CompressToDiscord:
                 command = [
                     "ffmpeg",
                     "-i", file,
-                    "-c:v", "libx264",
+                    "-c:v", self.options['video_codec'],
                     "-b:v", str(target_bitrate),
+                    "-maxrate", str(target_bitrate),
+                    "-bufsize", str(target_bitrate),
                     '-s', target_resolution,
-                    "-preset", "slow",
-                    "-acodec", "aac", "-b:a", str(target_audio_bitrate),
+                    "-preset", self.options['profile'],
+                    "-acodec", self.options['audio_codec'], "-b:a", str(target_audio_bitrate),
                     target_path
                 ]
-            print(f"INFO: Targeting ~{int(size)}MB with {int(target_bitrate/1024)}kbps @ {target_resolution}\n")
-            command = [
-                "ffmpeg",
-                "-i", file,
-                "-c:v", "libx264",
-                "-b:v", str(target_bitrate),
-                '-s', target_resolution,
-                "-preset", "slow",
-                "-acodec", "aac", "-b:a", str(target_audio_bitrate),
-                target_path
-            ]
+            print(f"INFO: Targeting ~{int(size_bytes/1024/1024)}MB with {int(target_bitrate/1024)}kbps @ {target_resolution}\n")
             subprocess.run(command)
         else:
             print(f"INFO: {file} is small enough. Skipping...")
         print(f"INFO: Wrote {target_path}")
 
 
+
 if __name__ == '__main__':
+    SIZE = 10 * 1024 * 1024
     try:
-        CompressToDiscord(sys.argv[1])
+        compressor = VideoCompressor(SIZE, "slow", "libx264", "aac")
+        compressor.compressVideo(os.path.abspath(sys.argv[1]))
     except IndexError:
-        print("Invalid syntax: CompressToDiscord [filename]")
+        print(f"Invalid syntax: {sys.argv[0]} [filename]")
 
