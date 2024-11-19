@@ -63,48 +63,46 @@ class VideoCompressor:
             meta_data_trimmed["framerate"] = 30
         meta_data_trimmed["filesize"] = float(meta_data['format']['size'])
         return meta_data_trimmed
-
+    
+    def getAudioBitrate(self, bitrate):
+        target_audio_bitrate=64000
+        if target_audio_bitrate < bitrate * 0.2:
+            audio_options = ["-acodec", self.options['audio_codec'], "-b:a", str(target_audio_bitrate)]
+            bitrate -= target_audio_bitrate
+        elif 22000 < bitrate * 0.4:
+            print("WARN: File too big; Reducing audio quality")
+            audio_options = ["-acodec", self.options['audio_codec'], "-b:a", "22000"]
+            bitrate -= 22000
+        else:
+            print("WARN: File too big; Disabling audio")
+            audio_options = ["-an"]
+        return audio_options, bitrate
+        
     def compressVideo(self, file):
         size_bytes = self.options['target_size_bytes']
         meta_data = self.getVideoInfo(file)
         file_size = int(meta_data['filesize']/1024/1024)
         file_bitrate = meta_data['bitrate']
         file_resolution = meta_data['resolution']
-        target_path = os.path.join(os.path.dirname(file), os.path.splitext(os.path.basename(file))[0] + ".discord.mp4")
+        target_path = os.path.join(os.path.dirname(file), os.path.splitext(os.path.basename(file))[0] + ".compressed.mp4")
         target_size = size_bytes * 8
-        target_audio_bitrate = 64000
-        target_bitrate = int((target_size/meta_data["duration"])) # 10% margin for margin of error
+        target_bitrate = int((target_size/meta_data["duration"]))
         target_resolution = self.getTargetResolution(target_bitrate, meta_data["framerate"])
         print(f"\nINFO: Input file {file_size}MB with {int(file_bitrate/1024)}kbps @ {file_resolution}")
+        audio_options, target_bitrate = self.getAudioBitrate(target_bitrate)
+        command = [
+            "ffmpeg",
+            "-i", file,
+            "-c:v", self.options['video_codec'],
+            "-b:v", str(target_bitrate),
+            "-maxrate", str(target_bitrate),
+            "-bufsize", str(target_bitrate),
+            '-s', target_resolution,
+            "-preset", self.options['profile']
+        ]
+        command += audio_options
+        command += [target_path]
         if not (target_bitrate >= meta_data["bitrate"]):
-            if target_bitrate-target_audio_bitrate <= 0:
-                print(f"WARN: File is too big to be compressed with sound.")
-                command = [
-                    "ffmpeg",
-                    "-i", file,
-                    "-c:v", self.options['video_codec'],
-                    "-b:v", str(target_bitrate),
-                    "-maxrate", str(target_bitrate),
-                    "-bufsize", "0",
-                    '-s', target_resolution,
-                    "-preset", self.options['profile'],
-                    "-an",
-                    target_path
-                ]
-            else:
-                target_bitrate -= target_audio_bitrate
-                command = [
-                    "ffmpeg",
-                    "-i", file,
-                    "-c:v", self.options['video_codec'],
-                    "-b:v", str(target_bitrate),
-                    "-maxrate", str(target_bitrate),
-                    "-bufsize", str(target_bitrate),
-                    '-s', target_resolution,
-                    "-preset", self.options['profile'],
-                    "-acodec", self.options['audio_codec'], "-b:a", str(target_audio_bitrate),
-                    target_path
-                ]
             print(f"INFO: Targeting ~{int(size_bytes/1024/1024)}MB with {int(target_bitrate/1024)}kbps @ {target_resolution}\n")
             subprocess.run(command)
         else:
@@ -142,14 +140,14 @@ if __name__ == '__main__':
         SIZE = 8 * 1024 * 1024
     else:
         SIZE = 10 * 1024 * 1024
-    try:
-        if len(sys.argv) > 1:
-            compressor = VideoCompressor(SIZE, "slow", "libx264", "aac")
-            compressor.compressVideo(os.path.abspath(sys.argv[-1]))
-        else:
-            print("\nERROR: Incorrect Syntax")
-            showHelp()
-    except:
-        print("\nERROR: File error")
+    #try:
+    if len(sys.argv) > 1:
+        compressor = VideoCompressor(SIZE, "slow", "libx264", "aac")
+        compressor.compressVideo(os.path.abspath(sys.argv[-1]))
+    else:
+        print("\nERROR: Incorrect Syntax")
         showHelp()
+    #except:
+    #    print("\nERROR: File error")
+    #    showHelp()
 
