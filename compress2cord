@@ -7,9 +7,13 @@ import os
 
 class VideoCompressor:
 
-    options = {}
-
     def __init__(self, target_size_bytes, profile='slow', video_codec='libx264', audio_codec='aac'):
+        if os.name == 'nt':
+            self.ffmpeg_bin = "ffmpeg.exe"
+            self.ffprobe_bin = "ffprobe.exe"
+        else:
+            self.ffmpeg_bin = "/usr/bin/ffmpeg"
+            self.ffprobe_bin = "/usr/bin/ffprobe"
         self.options = {
             'target_size_bytes': target_size_bytes,
             'profile': profile,
@@ -17,22 +21,25 @@ class VideoCompressor:
             'audio_codec': audio_codec
         }
 
-    def getTargetResolution(self, target_bitrate, framerate):
+    def getTargetResolution(self, target_bitrate, resolution, framerate):
         bitrate_multiplyer = framerate/30
         bitrate = target_bitrate/bitrate_multiplyer
-        if bitrate > 3000000:
-            return "1080"
-        elif bitrate > 1000000:
-            return "720"
-        elif bitrate > 500000:
-            return "480"
-        else:
-            return "360"
+        bitrate_mapping = {
+            "2160": 8000000,
+            "1440": 3500000,
+            "1080": 2000000,
+            "720": 1000000,
+            "480": 500000,
+            "360": 0
+        }
+        for res, bit in bitrate_mapping.items():
+            if bitrate >= bit:
+                return res
 
     def getVideoInfo(self, file):
         meta_data_trimmed = {}
         command = [
-            "ffprobe",
+            self.ffprobe_bin,
             "-v",
             "quiet",
             "-print_format",
@@ -93,11 +100,11 @@ class VideoCompressor:
         target_path = os.path.join(os.path.dirname(file), os.path.splitext(os.path.basename(file))[0] + ".compressed.mp4")
         target_size = size_bytes * 8
         target_bitrate = int((target_size/meta_data["duration"]))
-        target_resolution = self.getTargetResolution(target_bitrate, meta_data["framerate"])
+        target_resolution = self.getTargetResolution(target_bitrate, file_resolution, meta_data["framerate"])
         print(f"\nINFO: Input file {file_size}MB with {int(file_bitrate/1024)}kbps @ {file_resolution}p")
         audio_options, target_bitrate = self.getAudioBitrate(target_bitrate)
         command = [
-            "ffmpeg",
+            self.ffmpeg_bin,
             "-i", file,
             "-c:v", self.options['video_codec'],
             "-b:v", str(target_bitrate),
