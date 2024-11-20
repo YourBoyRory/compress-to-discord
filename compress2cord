@@ -21,13 +21,13 @@ class VideoCompressor:
         bitrate_multiplyer = framerate/30
         bitrate = target_bitrate/bitrate_multiplyer
         if bitrate > 3000000:
-            return "1920x1080"
+            return "1080"
         elif bitrate > 1000000:
-            return "1280x720"
+            return "720"
         elif bitrate > 500000:
-            return "854x480"
+            return "480"
         else:
-            return "640x360"
+            return "360"
 
     def getVideoInfo(self, file):
         meta_data_trimmed = {}
@@ -50,7 +50,7 @@ class VideoCompressor:
             try:
                 meta_data_trimmed["duration"] = float(steam['duration'])
                 meta_data_trimmed["bitrate"] = float(steam['bit_rate'])
-                meta_data_trimmed["resolution"] = f"{steam['width']}x{steam['height']}"
+                meta_data_trimmed["resolution"] = steam['height']
                 meta_data_trimmed["framerate"] = eval(steam['r_frame_rate'])
             except:
                 meta_data_trimmed = {}
@@ -63,24 +63,30 @@ class VideoCompressor:
             meta_data_trimmed["framerate"] = 30
         meta_data_trimmed["filesize"] = float(meta_data['format']['size'])
         return meta_data_trimmed
-    
+
     def getAudioBitrate(self, bitrate):
-        target_audio_bitrate=64000
-        if target_audio_bitrate < bitrate * 0.2:
-            audio_options = ["-acodec", self.options['audio_codec'], "-b:a", str(target_audio_bitrate)]
-            bitrate -= target_audio_bitrate
-        elif 22000 < bitrate * 0.4:
-            print("WARN: File too big; Reducing audio quality")
-            audio_options = ["-acodec", self.options['audio_codec'], "-b:a", "22000"]
-            bitrate -= 22000
-        else:
-            print("WARN: File too big; Disabling audio")
-            audio_options = ["-an"]
+        target_audio_bitrate=[64000,56000,48000,32000,22000]
+        multiplyer=0.25
+        audio_options = ["-an"]
+        for rate in target_audio_bitrate:
+            if rate < bitrate * multiplyer:
+                print(f"INFO: Target audio bitrate {rate}kbps")
+                audio_options = ["-acodec", self.options['audio_codec'], "-b:a", str(rate)]
+                bitrate -= rate
+                break
+        #audio_options = ["-acodec", self.options['audio_codec'], "-b:a", "48000"]
+        if audio_options[0] == "-an":
+            print(f"WARN: File too big. Audio disabled.")
         return audio_options, bitrate
-        
+
+
     def compressVideo(self, file):
         size_bytes = self.options['target_size_bytes']
-        meta_data = self.getVideoInfo(file)
+        try:
+            meta_data = self.getVideoInfo(file)
+        except:
+            print("ERROR: Video Meta data is not readable")
+            exit()
         file_size = int(meta_data['filesize']/1024/1024)
         file_bitrate = meta_data['bitrate']
         file_resolution = meta_data['resolution']
@@ -88,7 +94,7 @@ class VideoCompressor:
         target_size = size_bytes * 8
         target_bitrate = int((target_size/meta_data["duration"]))
         target_resolution = self.getTargetResolution(target_bitrate, meta_data["framerate"])
-        print(f"\nINFO: Input file {file_size}MB with {int(file_bitrate/1024)}kbps @ {file_resolution}")
+        print(f"\nINFO: Input file {file_size}MB with {int(file_bitrate/1024)}kbps @ {file_resolution}p")
         audio_options, target_bitrate = self.getAudioBitrate(target_bitrate)
         command = [
             "ffmpeg",
@@ -97,14 +103,17 @@ class VideoCompressor:
             "-b:v", str(target_bitrate),
             "-maxrate", str(target_bitrate),
             "-bufsize", str(target_bitrate),
-            '-s', target_resolution,
+            '-vf', f"scale=-2:{target_resolution}",
             "-preset", self.options['profile']
         ]
         command += audio_options
         command += [target_path]
         if not (target_bitrate >= meta_data["bitrate"]):
-            print(f"INFO: Targeting ~{int(size_bytes/1024/1024)}MB with {int(target_bitrate/1024)}kbps @ {target_resolution}\n")
+            print(f"INFO: Targeting ~{int(size_bytes/1024/1024)}MB with {int(target_bitrate/1024)}kbps @ {target_resolution}p\n")
+            #if (target_bitrate > 18000):
             subprocess.run(command)
+            #else:
+            #    print(f"ERROR: {file} is too big to be compressed to {int(size_bytes/1024/1024)}MB. Skipping...")
         else:
             print(f"INFO: {file} is small enough. Skipping...")
             exit()
@@ -140,14 +149,11 @@ if __name__ == '__main__':
         SIZE = 8 * 1024 * 1024
     else:
         SIZE = 10 * 1024 * 1024
-    #try:
+
     if len(sys.argv) > 1:
-        compressor = VideoCompressor(SIZE, "slow", "libx264", "aac")
+        compressor = VideoCompressor(SIZE, "fast", "libx264", "aac")
         compressor.compressVideo(os.path.abspath(sys.argv[-1]))
     else:
         print("\nERROR: Incorrect Syntax")
         showHelp()
-    #except:
-    #    print("\nERROR: File error")
-    #    showHelp()
 
