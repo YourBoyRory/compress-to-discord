@@ -1,5 +1,4 @@
 #!/usr/bin/python
-
 import subprocess
 import json
 import sys
@@ -160,6 +159,7 @@ def showHelp():
     print("    --old                      Compresses within the old file size limit (8MB).\n")
 
 if __name__ == '__main__':
+    
     if "--help" in sys.argv or "-h" in sys.argv:
         print("\n    Compress2Cord is a python script that will compress a video to fit as an attachment")
         print("    on Discord. By default, this script will compress a provided video at 10MB, but")
@@ -183,6 +183,8 @@ if __name__ == '__main__':
         file = os.path.abspath(sys.argv[-1])
         compressor.compressVideo(file)
     else:
-        print("\nERROR: Incorrect Syntax")
-        showHelp()
+        sys.path.append('/opt/compress2cord')
+        from frame import SpawnFrame
+        SpawnFrame()
+        exit()
 

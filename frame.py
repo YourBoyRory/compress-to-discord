@@ -341,6 +341,13 @@ class DragDropWindow(QWidget):
             base_path = os.path.dirname(__file__)
         return os.path.join(base_path, 'assets', file)
 
+class SpawnFrame():
+    def __init__(self):
+        app = QApplication(sys.argv)
+        window = DragDropWindow()
+        window.show()
+        sys.exit(app.exec_())
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = DragDropWindow()
