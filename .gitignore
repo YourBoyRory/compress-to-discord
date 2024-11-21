@@ -1,2 +1,6 @@
 *.exe
 *.mp4
+*.spec
+venv-windows/
+dist/
+build/
