@@ -16,6 +16,10 @@ class VideoCompressor:
             self.ffprobe_bin = "/usr/bin/ffprobe"
         print(self.ffmpeg_bin)
         print(self.ffprobe_bin)
+        self.lastMessageType=""
+        self.lastMessage=""
+        self.log=""
+        self.lastPath=""
         self.options = {
             'target_size_bytes': target_size_bytes,
             'profile': profile,
@@ -59,8 +63,8 @@ class VideoCompressor:
         ]
         result = subprocess.run(command, capture_output=True, text=True)
         if result.stderr:
-            print("Error:", result.stderr)
-            exit()
+            self.inform("Error:", result.stderr)
+            raise
         meta_data = json.loads(result.stdout)
         for steam in meta_data['streams']:
             try:
@@ -86,17 +90,17 @@ class VideoCompressor:
         audio_options = ["-an"]
         for rate in target_audio_bitrate:
             if rate < bitrate * multiplyer:
-                print(f"INFO: Target audio bitrate {rate}kbps")
+                self.inform("INFO:", f"Target audio bitrate {rate}kbps")
                 audio_options = ["-acodec", self.options['audio_codec'], "-b:a", str(rate)]
                 bitrate -= rate
                 break
         #audio_options = ["-acodec", self.options['audio_codec'], "-b:a", "48000"]
         if audio_options[0] == "-an":
-            print(f"WARN: File too big. Audio disabled.")
+            self.inform("WARN", "File too big. Audio disabled.")
         return audio_options, bitrate
 
 
-    def compressVideo(self, file):
+    def compressVideo(self, file, isGui=0):
         size_bytes = self.options['target_size_bytes']
         #try:
         meta_data = self.getVideoInfo(file)
@@ -106,14 +110,19 @@ class VideoCompressor:
         file_size = int(meta_data['filesize']/1024/1024)
         file_bitrate = meta_data['bitrate']
         file_resolution = meta_data['resolution']
-        target_path = os.path.join(os.path.dirname(file), os.path.splitext(os.path.basename(file))[0] + ".compressed.mp4")
+        if isGui:
+            os.makedirs(os.path.expanduser('~/Videos/compess2cord/'), exist_ok=True)
+            target_path = os.path.join(os.path.expanduser('~/Videos/compess2cord/'), os.path.splitext(os.path.basename(file))[0] + ".compressed.mp4")
+        else:
+            target_path = os.path.join(os.path.dirname(file), os.path.splitext(os.path.basename(file))[0] + ".compressed.mp4")
         target_size = size_bytes * 8
         target_bitrate = int((target_size/meta_data["duration"]))
         target_resolution = self.getTargetResolution(target_bitrate, file_resolution, meta_data["framerate"])
-        print(f"\nINFO: Input file {file_size}MB with {int(file_bitrate/1024)}kbps @ {file_resolution}p")
+        self.inform("\nINFO", f"Input file {file_size}MB with {int(file_bitrate/1024)}kbps @ {file_resolution}p")
         audio_options, target_bitrate = self.getAudioBitrate(target_bitrate)
         command = [
             self.ffmpeg_bin,
+            "-y",
             "-i", file,
             "-c:v", self.options['video_codec'],
             "-b:v", str(target_bitrate),
@@ -125,15 +134,25 @@ class VideoCompressor:
         command += audio_options
         command += [target_path]
         if not (target_bitrate >= meta_data["bitrate"]):
-            print(f"INFO: Targeting ~{int(size_bytes/1024/1024)}MB with {int(target_bitrate/1024)}kbps @ {target_resolution}p\n")
+            self.inform("INFO", f"Targeting ~{int(size_bytes/1024/1024)}MB with {int(target_bitrate/1024)}kbps @ {target_resolution}p\n")
             #if (target_bitrate > 18000):
             subprocess.run(command)
             #else:
             #    print(f"ERROR: {file} is too big to be compressed to {int(size_bytes/1024/1024)}MB. Skipping...")
+            self.inform("INFO", f"Wrote {target_path}")
         else:
-            print(f"INFO: {file} is small enough. Skipping...")
-            exit()
-        print(f"INFO: Wrote {target_path}")
+            self.inform("WARN", f"{file} is small enough. Skipping...")
+        self.lastPath = os.path.dirname(target_path)
+
+    def clearLog(self):
+        self.log=""
+
+    def inform(self, msg_type, msg):
+        if msg_type == "WARN" or msg_type == "ERROR":
+            self.log+=f"{msg}\n"
+        self.lastMessageType = msg_type
+        self.lastMessage = msg
+        print(f"{msg_type}: {msg}")
 
 
 def showHelp():
