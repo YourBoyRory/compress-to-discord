@@ -178,7 +178,7 @@ class DragDropWindow(QWidget):
         self.setFont(custom_font)
 
         # Add a label to display the instruction
-        self.label = QLabel("Drag and drop a videos here", self)
+        self.label = QLabel("Drag and drop your videos here", self)
         self.label.setStyleSheet("font-size: 16px; color: white;")
         self.label.setAlignment(Qt.AlignCenter)
 

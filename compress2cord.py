@@ -97,11 +97,11 @@ class VideoCompressor:
 
     def compressVideo(self, file, target_path=None):
         size_bytes = self.options['target_size_bytes']
-        #try:
-        meta_data = self.getVideoInfo(file)
-        #except:
-        #    print("ERROR: Video Meta data is not readable")
-        #    exit()
+        try:
+            meta_data = self.getVideoInfo(file)
+        except:
+            self.inform("ERROR", f"{file} Codec metadata was not readable")
+            return
         file_size = int(meta_data['filesize']/1024/1024)
         file_bitrate = meta_data['bitrate']
         file_resolution = meta_data['resolution']

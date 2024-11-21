@@ -7,4 +7,4 @@ if mkdir ./lib; then
     rm ./ffmpeg-master-latest-win64-gpl.zip
 fi
 wine ./set_env.cmd
-ls -l ./dist/compress2cord
+ls -lh ./dist/Compress2Cord
