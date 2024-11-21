@@ -16,10 +16,7 @@ class VideoCompressor:
             self.ffprobe_bin = "/usr/bin/ffprobe"
         print(self.ffmpeg_bin)
         print(self.ffprobe_bin)
-        self.lastMessageType=""
-        self.lastMessage=""
-        self.log=""
-        self.lastPath=""
+        self.log = ""
         self.options = {
             'target_size_bytes': target_size_bytes,
             'profile': profile,
@@ -95,12 +92,10 @@ class VideoCompressor:
                 bitrate -= rate
                 break
         #audio_options = ["-acodec", self.options['audio_codec'], "-b:a", "48000"]
-        if audio_options[0] == "-an":
-            self.inform("WARN", "File too big. Audio disabled.")
         return audio_options, bitrate
 
 
-    def compressVideo(self, file, isGui=0):
+    def compressVideo(self, file, target_path=None):
         size_bytes = self.options['target_size_bytes']
         #try:
         meta_data = self.getVideoInfo(file)
@@ -110,10 +105,7 @@ class VideoCompressor:
         file_size = int(meta_data['filesize']/1024/1024)
         file_bitrate = meta_data['bitrate']
         file_resolution = meta_data['resolution']
-        if isGui:
-            os.makedirs(os.path.expanduser('~/Videos/compess2cord/'), exist_ok=True)
-            target_path = os.path.join(os.path.expanduser('~/Videos/compess2cord/'), os.path.splitext(os.path.basename(file))[0] + ".compressed.mp4")
-        else:
+        if target_path == None:
             target_path = os.path.join(os.path.dirname(file), os.path.splitext(os.path.basename(file))[0] + ".compressed.mp4")
         target_size = size_bytes * 8
         target_bitrate = int((target_size/meta_data["duration"]))
@@ -134,6 +126,8 @@ class VideoCompressor:
         command += audio_options
         command += [target_path]
         if not (target_bitrate >= meta_data["bitrate"]):
+            if audio_options[0] == "-an":
+                self.inform("WARN", f"{file} was too big to be compressed to {int(size_bytes/1024/1024)}MB with audio. Audio was disabled.")
             self.inform("INFO", f"Targeting ~{int(size_bytes/1024/1024)}MB with {int(target_bitrate/1024)}kbps @ {target_resolution}p\n")
             #if (target_bitrate > 18000):
             subprocess.run(command)
@@ -141,8 +135,7 @@ class VideoCompressor:
             #    print(f"ERROR: {file} is too big to be compressed to {int(size_bytes/1024/1024)}MB. Skipping...")
             self.inform("INFO", f"Wrote {target_path}")
         else:
-            self.inform("WARN", f"{file} is small enough. Skipping...")
-        self.lastPath = os.path.dirname(target_path)
+            self.inform("WARN", f"{file} was already smaller then {int(size_bytes/1024/1024)}MB.")
 
     def clearLog(self):
         self.log=""
@@ -187,7 +180,8 @@ if __name__ == '__main__':
 
     if len(sys.argv) > 1:
         compressor = VideoCompressor(SIZE, "fast", "libx264", "aac")
-        compressor.compressVideo(os.path.abspath(sys.argv[-1]))
+        file = os.path.abspath(sys.argv[-1])
+        compressor.compressVideo(file)
     else:
         print("\nERROR: Incorrect Syntax")
         showHelp()
