@@ -6,7 +6,7 @@ import os
 
 class VideoCompressor:
 
-    def __init__(self, target_size_bytes, profile='slow', video_codec='libx264', audio_codec='aac'):
+    def __init__(self, target_size_bytes, profile='slow', video_codec='libx264', audio_codec='libopus'):
         if os.name == 'nt':
             self.ffmpeg_bin = self.getAssetPath("ffmpeg.exe")
             self.ffprobe_bin = self.getAssetPath("ffprobe.exe")
@@ -81,16 +81,20 @@ class VideoCompressor:
         return meta_data_trimmed
 
     def getAudioBitrate(self, bitrate):
-        target_audio_bitrate=[64000,56000,48000,32000,22000]
+        target_audio_bitrate=[64000,56000,48000,32000,22000,16000,14000,12000,8000,6000,4000,2000]
         multiplyer=0.25
         audio_options = ["-an"]
+        if self.options['audio_codec'] == "disabled":
+            return audio_options, bitrate
         for rate in target_audio_bitrate:
             if rate < bitrate * multiplyer:
                 self.inform("INFO:", f"Target audio bitrate {rate}kbps")
                 audio_options = ["-acodec", self.options['audio_codec'], "-b:a", str(rate)]
                 bitrate -= rate
                 break
-        #audio_options = ["-acodec", self.options['audio_codec'], "-b:a", "48000"]
+        if audio_options[0] == "-an":
+            #if all else fails go as low as possible allowing over head file size
+            audio_options = ["-acodec", self.options['audio_codec'], "-ac", "1", "-b:a", "1000"]
         return audio_options, bitrate
 
 
@@ -125,8 +129,6 @@ class VideoCompressor:
         command += audio_options
         command += [target_path]
         if not (target_bitrate >= meta_data["bitrate"]):
-            if audio_options[0] == "-an":
-                self.inform("WARN", f"{file} was too big to be compressed to {int(size_bytes/1024/1024)}MB with audio. Audio was disabled.")
             self.inform("INFO", f"Targeting ~{int(size_bytes/1024/1024)}MB with {int(target_bitrate/1024)}kbps @ {target_resolution}p\n")
             #if (target_bitrate > 18000):
             subprocess.run(command)
@@ -159,7 +161,7 @@ def showHelp():
     print("    --old                      Compresses within the old file size limit (8MB).\n")
 
 if __name__ == '__main__':
-    
+
     if "--help" in sys.argv or "-h" in sys.argv:
         print("\n    Compress2Cord is a python script that will compress a video to fit as an attachment")
         print("    on Discord. By default, this script will compress a provided video at 10MB, but")
@@ -179,7 +181,7 @@ if __name__ == '__main__':
         SIZE = 10 * 1024 * 1024
 
     if len(sys.argv) > 1:
-        compressor = VideoCompressor(SIZE, "fast", "libx264", "aac")
+        compressor = VideoCompressor(SIZE, "fast", "libx264", "libopus")
         file = os.path.abspath(sys.argv[-1])
         compressor.compressVideo(file)
     else:

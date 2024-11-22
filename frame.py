@@ -171,7 +171,7 @@ class SetOptions(QDialog):
         # Populate drop-downs with example items
         self.combo1.addItems(["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
         self.combo2.addItems(['libx264', 'libx265', 'libaom-av1', 'libvpx-vp9'])
-        self.combo3.addItems(['aac', 'libopus'])
+        self.combo3.addItems(['aac', 'libopus', 'disabled'])
         self.combo4.addItems(['Nitro (500MB)', 'Nitro Basic (50MB)', 'Discord (10MB)', 'Custom'])
 
         self.combo4.currentTextChanged.connect(self.handleComboBoxChange)
@@ -294,7 +294,7 @@ class DragDropWindow(QWidget):
         self.setWindowTitle("Compress2Cord")
         self.setWindowIcon(QIcon(self.getAssetPath('icon.png')))
         self.setGeometry(100, 100, 400, 300)
-        self.setFixedSize(400, 300)
+        self.setFixedSize(600, 400)
         self.setAcceptDrops(True)  # Enable drag-and-drop
 
         font_id = QFontDatabase.addApplicationFont(self.getAssetPath("ggsans.ttf"))
@@ -430,7 +430,7 @@ class DragDropWindow(QWidget):
                 'target_size_bytes': 10 * 1024 * 1024,
                 'profile': 'slow',
                 'video_codec': 'libx264',
-                'audio_codec': 'aac'
+                'audio_codec': 'libopus'
             }
 
     def on_loading_complete(self, log):
@@ -456,8 +456,9 @@ class DragDropWindow(QWidget):
         msg.setInformativeText(bottom_text)
         msg.setStyleSheet("""
             QLabel {
-                min-width:500 px;
-                font-size: 12pt;
+                min-width: 500 px;
+                color: #b5bac1;
+                font-size: 12px;
             }
         """)
         return msg
