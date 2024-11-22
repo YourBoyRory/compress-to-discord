@@ -6,7 +6,163 @@ import subprocess
 from compress2cord import VideoCompressor
 from PyQt5.QtCore import Qt, QThread, QSize,  pyqtSignal
 from PyQt5.QtGui import QDragEnterEvent, QDoubleValidator, QDropEvent, QMovie, QFont, QFontDatabase, QIcon
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QMessageBox, QPushButton, QDialog, QComboBox, QLineEdit, QSpacerItem, QSizePolicy
+from PyQt5.QtWidgets import QFrame, QApplication, QWidget, QLabel, QVBoxLayout, QMessageBox, QPushButton, QDialog, QComboBox, QLineEdit, QSpacerItem, QSizePolicy
+
+class StyleSheets():
+        options_stylesheet = ("""
+            QWidget {
+                background-color: #313338;
+                color: white;
+                font-size: 16px;
+            }
+            QLabel {
+                color: #b5bac1;
+                font-weight: bold;
+                font-size: 12px;
+            }
+            QFrame {
+                background-color: #313338;
+                border: 0px solid #313338;
+                padding: 0;
+            }
+            QComboBox {
+                background-color: #1e1f22;
+                border: 5px solid #1e1f22;
+                border-radius: 5px;
+                padding: 5;
+                font-size: 14px;
+                color: white;
+            }
+            QLineEdit {
+                background: #1e1f22;
+                font-size: 14px;
+                color: white;
+            }
+            QPushButton {
+                background-color: #5865f2;
+                border: 5px solid #5865f2;
+                border-radius: 5px;
+                padding: 2;
+                color: white;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #4752c4;
+                border: 8px solid #4752c4;
+                border-radius: 5px;
+            }
+            QPushButton:pressed {
+                background-color: #3c45a5;
+                border: 8px solid #3c45a5;
+                border-radius: 5px;
+            }
+            QComboBox::down-arrow {
+                image: url('assets/arrow.png');
+                width: 14px;
+                height: 13px;
+            }
+            QComboBox:drop-down {
+                border: none;
+                background-color: transparent;
+            }
+        """)
+
+        main_stylesheet = ("""
+            QWidget {
+                background-color: #2b2d31;
+                color: white;
+                font-size: 16px;
+            }
+            QLabel {
+                color: #f2f3e9;
+                font-size: 12px;
+            }
+            QFrame {
+                background-color: #313338;
+                border: 5px solid #313338;
+                border-radius: 8px;
+                padding: 10;
+            }
+            QPushButton {
+                background-color: #5865f2;
+                border: 5px solid #5865f2;
+                border-radius: 5px;
+                padding: 2;
+                padding-left: 20px;
+                padding-right: 20px;
+                color: white;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #4752c4;
+                border: 8px solid #4752c4;
+                border-radius: 5px;
+            }
+            QPushButton:pressed {
+                background-color: #3c45a5;
+                border: 8px solid #3c45a5;
+                border-radius: 5px;
+            }
+        """)
+
+        compessing_stylesheet = ("""
+            QWidget {
+                background-color: #2f3136;
+                color: white;
+                font-size: 16px;
+            }
+            QLabel {
+                color: #f2f3e9;
+                font-size: 12px;
+            }
+            QFrame {
+                background-color: #2f3136;
+                border: 5px solid #2f3136;
+                border-radius: 5px;
+                padding: 10;
+            }
+            QComboBox {
+                background-color: #1e1f22;
+                border: 5px solid #1e1f22;
+                border-radius: 5px;
+                padding: 5;
+                font-size: 14px;
+                color: white;
+            }
+            QLineEdit {
+                background: #1e1f22;
+                font-size: 14px;
+                color: white;
+            }
+            QPushButton {
+                background-color: #5865f2;
+                border: 5px solid #5865f2;
+                border-radius: 5px;
+                padding: 2;
+                color: white;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #4752c4;
+                border: 8px solid #4752c4;
+                border-radius: 5px;
+            }
+            QPushButton:pressed {
+                background-color: #3c45a5;
+                border: 8px solid #3c45a5;
+                border-radius: 5px;
+            }
+            QComboBox::down-arrow {
+                image: url('assets/arrow.png');
+                width: 14px;
+                height: 13px;
+            }
+            QComboBox:drop-down {
+                border: none;
+                background-color: transparent;
+            }
+        """)
+
 
 class Compess(QThread):
     # A signal to send the result back to the main thread
@@ -20,7 +176,7 @@ class Compess(QThread):
 
     def setBatch(self, urls):
         self.urls = urls
-        
+
     def setOptions(self, options):
         self.SIZE = int(float(options["target_size_bytes"])/1024/1024)
         self.compressor = VideoCompressor(options["target_size_bytes"], options["profile"], options["video_codec"], options["audio_codec"])
@@ -28,8 +184,7 @@ class Compess(QThread):
     def run(self):
         count=1
         for file in self.urls:
-            self.window.label.setText(f"[{count}/{len(self.urls)}] Compressing to {self.SIZE}MB...")
-            self.window.label.setStyleSheet("font-size: 16px; color: gray;")
+            self.window.show_folder_btn.setText(f"[{count}/{len(self.urls)}] Compressing to {self.SIZE}MB...")
             input_file = os.path.abspath(file.toLocalFile())
             os.makedirs(os.path.join(os.path.expanduser("~"), "Videos", "compess2cord"), exist_ok=True)
             output_file = str(os.path.join(os.path.expanduser("~"), "Videos", "compess2cord", os.path.splitext(os.path.basename(input_file))[0] + ".compressed.mp4"))
@@ -41,17 +196,20 @@ class Compess(QThread):
 class SetOptions(QDialog):
     def __init__(self, parent=None, options=None):
         super().__init__(parent)
-        
+
         self.save = False
-        
+
         self.options = options
-        
+        stylesheets = StyleSheets()
+        self.setStyleSheet(stylesheets.options_stylesheet)
+
         self.setMinimumWidth(300)
-        
+        self.resize(400, 300)
         self.setWindowTitle('Options')
 
         # Create layout
         layout = QVBoxLayout()
+
 
         # Create drop-down menus (QComboBox)
         self.combo1 = QComboBox()
@@ -63,20 +221,20 @@ class SetOptions(QDialog):
         self.combo1.addItems(["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
         self.combo2.addItems(['libx264', 'libx265', 'libaom-av1', 'libvpx-vp9'])
         self.combo3.addItems(['aac', 'libopus'])
-        self.combo4.addItems(['Discord (10MB)', 'Nitro (500MB)', 'Nitro Basic (50MB)', 'Custom'])
+        self.combo4.addItems(['Nitro (500MB)', 'Nitro Basic (50MB)', 'Discord (10MB)', 'Custom'])
 
         self.combo4.currentTextChanged.connect(self.handleComboBoxChange)
 
         self.combo1.setCurrentText(self.options['profile'])
         self.combo2.setCurrentText(self.options['video_codec'])
         self.combo3.setCurrentText(self.options['audio_codec'])
-        
+
         self.textField = QLineEdit(self)
-        self.textField.setPlaceholderText("Custom File Size")
+        self.textField.setPlaceholderText("Custom File Size (MB)")
         self.textField.setValidator(QDoubleValidator(self))
-        
+
         self.textField.setHidden(True)
-        
+
         size =self.options['target_size_bytes']
         if size == 500 * 1024 * 1024:
             size_option = 'Nitro (500MB)'
@@ -86,30 +244,56 @@ class SetOptions(QDialog):
             size_option = 'Discord (10MB)'
         else:
             self.textField.setText(str(size/1024/1024))
-            self.textField.setHidden(False) 
+            self.textField.setHidden(False)
             size_option = 'Custom'
-        
+
         self.combo4.setCurrentText(size_option)
-        
+        layout.setSpacing(15)
+        layout.setContentsMargins(48, 24, 48, 24)
         # Add drop-downs and labels to the layout
-        
-        layout.addWidget(QLabel('Profile:'))
+
+        lable = QLabel('Compression Settings')
+        lable.setStyleSheet("""
+            QLabel {
+                color: #f2f3f5;
+                font-size: 16px;
+            }
+        """)
+        layout.addWidget(lable)
+
+
+        layout.addWidget(QLabel('PROFILE'))
         layout.addWidget(self.combo1)
-        
-        layout.addWidget(QLabel('Video Codec:'))
+
+        spacer = QSpacerItem(0, 8)
+        layout.addItem(spacer)
+
+        layout.addWidget(QLabel('VIDEO CODEC'))
         layout.addWidget(self.combo2)
-        
-        layout.addWidget(QLabel('Audio Codec:'))
+
+        spacer = QSpacerItem(0, 8)
+        layout.addItem(spacer)
+
+        layout.addWidget(QLabel('AUDIO CODEC'))
         layout.addWidget(self.combo3)
-        
-        layout.addWidget(QLabel('File Size:'))
+
+        spacer = QSpacerItem(0, 8)
+        layout.addItem(spacer)
+
+        layout.addWidget(QLabel('FILE SIZE'))
         layout.addWidget(self.combo4)
         layout.addWidget(self.textField)
+
+        spacer = QSpacerItem(0, 16)
+        layout.addItem(spacer)
 
         # Add a button to submit the choices
         submit_button = QPushButton('Save')
         submit_button.clicked.connect(self.submit)
-        layout.addWidget(submit_button)
+        submit_button.setMaximumWidth(90)
+        layout.addWidget(submit_button, Qt.AlignCenter)
+
+        layout.addStretch()
 
         # Set the layout for the dialog
         self.setLayout(layout)
@@ -120,15 +304,15 @@ class SetOptions(QDialog):
             self.textField.setHidden(False)
         else:
             self.textField.setHidden(True)
-    
+
     def submit(self):
         # Handle submission of selections
         choice1 = self.combo1.currentText()
         choice2 = self.combo2.currentText()
         choice3 = self.combo3.currentText()
         choice4 = self.combo4.currentText()
-        
-        
+
+
         if choice4 == 'Nitro (500MB)':
             SIZE = 500 * 1024 * 1024
         elif choice4 == 'Nitro Basic (50MB)':
@@ -154,7 +338,7 @@ class SetOptions(QDialog):
 class DragDropWindow(QWidget):
     def __init__(self):
         super().__init__()
-        
+
         # Set the main window properties
         self.setWindowTitle("Compress2Cord")
         self.setWindowIcon(QIcon(self.getAssetPath('icon.png')))
@@ -166,15 +350,9 @@ class DragDropWindow(QWidget):
         font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
         custom_font = QFont(font_family)
 
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #2f3136;
-                color: white;
-            }
-            QLabel {
-                color: white;
-            }
-        """)
+        self.stylesheets = StyleSheets()
+        self.setStyleSheet(self.stylesheets.main_stylesheet)
+
         self.setFont(custom_font)
 
         # Add a label to display the instruction
@@ -199,36 +377,35 @@ class DragDropWindow(QWidget):
                 background-color: transparent;
                 border: none;
                 color: gray;
-                
+
             }
         """)
         self.show_options_btn.clicked.connect(self.showOptionsWindow)
 
-        self.show_folder_btn = QPushButton("Show Output Folder")
-        self.show_folder_btn.setVisible(False)
+        self.show_folder_btn = QPushButton(" Show Output Folder  ")
+        self.show_folder_btn.setIcon(QIcon(self.getAssetPath('file.png')))
+        self.show_folder_btn.setIconSize(QSize(21, 21))
+        self.show_folder_btn.setFixedHeight(35)
         self.show_folder_btn.setStyleSheet("""
             QPushButton {
                 background-color: transparent;
                 border: none;
-                color: gray;
+                color: #949ba4;
                 font-size: 16px;
             }
             QPushButton:hover {
-                color: darkgray;
+                color: #dbdee1;
             }
         """)
         self.show_folder_btn.clicked.connect(self.showFolder)
 
         # Layout to hold the labels
         layout = QVBoxLayout()
-        self.header_spacer = QSpacerItem(0, 0)
-        layout.addItem(self.header_spacer)
+        layout.setContentsMargins(25, 5, 20, 8)
         layout.addWidget(self.show_options_btn,Qt.AlignLeft)
         layout.addWidget(self.loading_label,Qt.AlignCenter)
         layout.addWidget(self.label,Qt.AlignCenter)
         layout.addWidget(self.show_folder_btn,Qt.AlignCenter)
-        self.footer_spacer = QSpacerItem(0, 35)
-        layout.addItem(self.footer_spacer)
         self.setLayout(layout)
 
         # Hide the loading label initially
@@ -256,12 +433,11 @@ class DragDropWindow(QWidget):
 
              # Show loading animation
             self.loading_label.setVisible(True)  # Show the loading spinner
-            self.show_folder_btn.setVisible(False)
-            self.show_options_btn.setVisible(False)
-            self.footer_spacer.changeSize(0, 0)
-            self.header_spacer.changeSize(0, 35)
+            self.show_folder_btn.setEnabled(False)
+            self.show_folder_btn.setIconSize(QSize(0, 0))
+            self.label.setVisible(False)
             self.movie.start()  # Start the loading animation
-
+            self.setStyleSheet(self.stylesheets.main_stylesheet)
             self.worker.setBatch(urls)
             self.worker.start()
 
@@ -286,13 +462,13 @@ class DragDropWindow(QWidget):
         if options_window.save == True:
             self.writeOptions()
             self.worker.setOptions(self.options)
-        
+
 
     def writeOptions(self):
         os.makedirs(os.path.join(os.path.expanduser("~"), "Videos", "compess2cord"), exist_ok=True)
         with open(os.path.join(os.path.expanduser("~"), "Videos", "compess2cord", ".compess2cord.json"), 'w') as f:
             json.dump(self.options, f)
-        
+
     def loadOptions(self):
         os.makedirs(os.path.join(os.path.expanduser("~"), "Videos", "compess2cord"), exist_ok=True)
         try:
@@ -305,16 +481,17 @@ class DragDropWindow(QWidget):
                 'video_codec': 'libx264',
                 'audio_codec': 'aac'
             }
-            
+
     def on_loading_complete(self, log):
         self.movie.stop()  # Stop the loading animation
+        self.setStyleSheet(self.stylesheets.main_stylesheet)
         self.loading_label.setVisible(False)  # Hide the loading spinner
-        self.show_folder_btn.setVisible(True)
-        self.show_options_btn.setVisible(True)
-        self.footer_spacer.changeSize(0, 35)
-        self.header_spacer.changeSize(0, 0)
+        self.show_folder_btn.setEnabled(True)
+        self.show_folder_btn.setIconSize(QSize(21, 21))
+        self.label.setVisible(True)
         self.label.setStyleSheet("font-size: 16px; color: white;")
         msg = self.make_popup_window(None, "Report", log, "")
+        self.show_folder_btn.setText(" Show Output Folder  ")
         self.label.setText(f"Files Compessed\nDrag and drop more videos here")  # Show the file path
         if log != "":
             msg.exec()
