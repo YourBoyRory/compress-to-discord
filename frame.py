@@ -9,159 +9,110 @@ from PyQt5.QtGui import QDragEnterEvent, QDoubleValidator, QDropEvent, QMovie, Q
 from PyQt5.QtWidgets import QFrame, QApplication, QWidget, QLabel, QVBoxLayout, QMessageBox, QPushButton, QDialog, QComboBox, QLineEdit, QSpacerItem, QSizePolicy
 
 class StyleSheets():
-        options_stylesheet = ("""
-            QWidget {
-                background-color: #313338;
-                color: white;
-                font-size: 16px;
-            }
-            QLabel {
-                color: #b5bac1;
-                font-weight: bold;
-                font-size: 12px;
-            }
-            QFrame {
-                background-color: #313338;
-                border: 0px solid #313338;
-                padding: 0;
-            }
-            QComboBox {
-                background-color: #1e1f22;
-                border: 5px solid #1e1f22;
-                border-radius: 5px;
-                padding: 5;
-                font-size: 14px;
-                color: white;
-            }
-            QLineEdit {
-                background: #1e1f22;
-                font-size: 14px;
-                color: white;
-            }
-            QPushButton {
-                background-color: #5865f2;
-                border: 5px solid #5865f2;
-                border-radius: 5px;
-                padding: 2;
-                color: white;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #4752c4;
-                border: 8px solid #4752c4;
-                border-radius: 5px;
-            }
-            QPushButton:pressed {
-                background-color: #3c45a5;
-                border: 8px solid #3c45a5;
-                border-radius: 5px;
-            }
-            QComboBox::down-arrow {
-                image: url('assets/arrow.png');
-                width: 14px;
-                height: 13px;
-            }
-            QComboBox:drop-down {
-                border: none;
-                background-color: transparent;
-            }
-        """)
+    def getAssetPath(file):
+        if getattr(sys, 'frozen', False):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.dirname(__file__)
+        return os.path.join(base_path, 'assets', file)
 
-        main_stylesheet = ("""
-            QWidget {
-                background-color: #2b2d31;
-                color: white;
-                font-size: 16px;
-            }
-            QLabel {
-                color: #f2f3e9;
-                font-size: 12px;
-            }
-            QFrame {
-                background-color: #313338;
-                border: 5px solid #313338;
-                border-radius: 8px;
-                padding: 10;
-            }
-            QPushButton {
-                background-color: #5865f2;
-                border: 5px solid #5865f2;
-                border-radius: 5px;
-                padding: 2;
-                padding-left: 20px;
-                padding-right: 20px;
-                color: white;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #4752c4;
-                border: 8px solid #4752c4;
-                border-radius: 5px;
-            }
-            QPushButton:pressed {
-                background-color: #3c45a5;
-                border: 8px solid #3c45a5;
-                border-radius: 5px;
-            }
-        """)
+    image = getAssetPath("arrow.png")
 
-        compessing_stylesheet = ("""
-            QWidget {
-                background-color: #2f3136;
-                color: white;
-                font-size: 16px;
-            }
-            QLabel {
-                color: #f2f3e9;
-                font-size: 12px;
-            }
-            QFrame {
-                background-color: #2f3136;
-                border: 5px solid #2f3136;
-                border-radius: 5px;
-                padding: 10;
-            }
-            QComboBox {
-                background-color: #1e1f22;
-                border: 5px solid #1e1f22;
-                border-radius: 5px;
-                padding: 5;
-                font-size: 14px;
-                color: white;
-            }
-            QLineEdit {
-                background: #1e1f22;
-                font-size: 14px;
-                color: white;
-            }
-            QPushButton {
-                background-color: #5865f2;
-                border: 5px solid #5865f2;
-                border-radius: 5px;
-                padding: 2;
-                color: white;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #4752c4;
-                border: 8px solid #4752c4;
-                border-radius: 5px;
-            }
-            QPushButton:pressed {
-                background-color: #3c45a5;
-                border: 8px solid #3c45a5;
-                border-radius: 5px;
-            }
-            QComboBox::down-arrow {
-                image: url('assets/arrow.png');
-                width: 14px;
-                height: 13px;
-            }
-            QComboBox:drop-down {
-                border: none;
-                background-color: transparent;
-            }
-        """)
+    options_stylesheet = (f"""
+        QWidget {{
+            background-color: #313338;
+            color: white;
+            font-size: 16px;
+        }}
+        QLabel {{
+            color: #b5bac1;
+            font-weight: bold;
+            font-size: 12px;
+        }}
+        QFrame {{
+            background-color: #313338;
+            border: 0px solid #313338;
+            padding: 0;
+        }}
+        QComboBox {{
+            background-color: #1e1f22;
+            border: 5px solid #1e1f22;
+            border-radius: 5px;
+            padding: 5;
+            font-size: 14px;
+            color: white;
+        }}
+        QLineEdit {{
+            background: #1e1f22;
+            font-size: 14px;
+            color: white;
+        }}
+        QPushButton {{
+            background-color: #5865f2;
+            border: 5px solid #5865f2;
+            border-radius: 5px;
+            padding: 2;
+            color: white;
+            font-size: 14px;
+        }}
+        QPushButton:hover {{
+            background-color: #4752c4;
+            border: 8px solid #4752c4;
+            border-radius: 5px;
+        }}
+        QPushButton:pressed {{
+            background-color: #3c45a5;
+            border: 8px solid #3c45a5;
+            border-radius: 5px;
+        }}
+        QComboBox::down-arrow {{
+            image: url({image});
+            width: 14px;
+            height: 13px;
+        }}
+        QComboBox:drop-down {{
+            border: none;
+            background-color: transparent;
+        }}
+    """)
+
+    main_stylesheet = ("""
+        QWidget {
+            background-color: #2b2d31;
+            color: white;
+            font-size: 16px;
+        }
+        QLabel {
+            color: #f2f3e9;
+            font-size: 12px;
+        }
+        QFrame {
+            background-color: #313338;
+            border: 5px solid #313338;
+            border-radius: 8px;
+            padding: 10;
+        }
+        QPushButton {
+            background-color: #5865f2;
+            border: 5px solid #5865f2;
+            border-radius: 5px;
+            padding: 2;
+            padding-left: 20px;
+            padding-right: 20px;
+            color: white;
+            font-size: 14px;
+        }
+        QPushButton:hover {
+            background-color: #4752c4;
+            border: 8px solid #4752c4;
+            border-radius: 5px;
+        }
+        QPushButton:pressed {
+            background-color: #3c45a5;
+            border: 8px solid #3c45a5;
+            border-radius: 5px;
+        }
+    """)
 
 
 class Compess(QThread):
