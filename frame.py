@@ -299,7 +299,7 @@ class SetOptions(QDialog):
         elif choice_size == 'Nitro Basic (50MB)':
             SIZE = 50 * 1024 * 1024
         elif choice_size =='Custom':
-            val = self.textField.text()
+            val = self.custSizeField.text()
             if val != "":
                 SIZE = float(val) * 1024 * 1024
                 print(float(val), SIZE)
