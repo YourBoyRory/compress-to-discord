@@ -117,20 +117,23 @@ class StyleSheets():
 
 class Compess(QThread):
     # A signal to send the result back to the main thread
-    finished = pyqtSignal(str)
+    finished = pyqtSignal(str, int, int, int)
 
     def __init__(self, window, options):
         super().__init__()
         self.SIZE = int(float(options["target_size_bytes"])/1024/1024)
-        self.compressor = VideoCompressor(options["target_size_bytes"], options["profile"], options["video_codec"], options["audio_codec"])
+        self.compressor = VideoCompressor(options["target_size_bytes"], options["preset"], options["profile"], options["video_codec"], options["audio_codec"])
         self.window = window
+
+    def getCodecs(self):
+        return self.compressor.getCodecs()
 
     def setBatch(self, urls):
         self.urls = urls
 
     def setOptions(self, options):
         self.SIZE = int(float(options["target_size_bytes"])/1024/1024)
-        self.compressor = VideoCompressor(options["target_size_bytes"], options["profile"], options["video_codec"], options["audio_codec"])
+        self.compressor = VideoCompressor(options["target_size_bytes"], options["preset"], options["profile"], options["video_codec"], options["audio_codec"])
 
     def run(self):
         count=1
@@ -141,11 +144,12 @@ class Compess(QThread):
             output_file = str(os.path.join(os.path.expanduser("~"), "Videos", "compess2cord", os.path.splitext(os.path.basename(input_file))[0] + ".compressed.mp4"))
             self.compressor.compressVideo(input_file, output_file)
             count+=1
-        self.finished.emit(self.compressor.log)
+            
+        self.finished.emit(self.compressor.log, self.compressor.videosCompessed, self.compressor.videosFailed, self.compressor.videosSkipped)
         self.compressor.clearLog()
 
 class SetOptions(QDialog):
-    def __init__(self, parent=None, options=None):
+    def __init__(self, parent=None, options=None, codecs=None):
         super().__init__(parent)
 
         self.save = False
@@ -163,30 +167,36 @@ class SetOptions(QDialog):
 
 
         # Create drop-down menus (QComboBox)
-        self.combo1 = QComboBox()
-        self.combo2 = QComboBox()
-        self.combo3 = QComboBox()
-        self.combo4 = QComboBox()
+        self.preset = QComboBox()
+        self.profile = QComboBox()
+        self.v_codec = QComboBox()
+        self.a_codec = QComboBox()
+        self.size = QComboBox()
 
         # Populate drop-downs with example items
-        self.combo1.addItems(["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
-        self.combo2.addItems(['libx264', 'libx265', 'libaom-av1', 'libvpx-vp9'])
-        self.combo3.addItems(['aac', 'libopus', 'disabled'])
-        self.combo4.addItems(['Nitro (500MB)', 'Nitro Basic (50MB)', 'Discord (10MB)', 'Custom'])
+        self.preset.addItems(["fast", "medium", "slow"])
+        self.profile.addItems(["baseline", "main", "high"])
+        self.v_codec.addItems(codecs['video'])
+        self.a_codec.addItems(codecs['audio'])
+        self.size.addItems(['Nitro (500MB)', 'Nitro Basic (50MB)', 'Discord (10MB)', 'Custom'])
 
-        self.combo4.currentTextChanged.connect(self.handleComboBoxChange)
+        self.size.currentTextChanged.connect(self.sizeChange)
+        #self.combo2.currentTextChanged.connect(self.v_codecChange)
+        
+        self.preset.setCurrentText(self.options['preset'])
+        self.profile.setCurrentText(self.options['profile'])
+        self.v_codec.setCurrentText(self.options['video_codec'])
+        #self.v_codecChange(self.options['v_codec'])
+        self.a_codec.setCurrentText(self.options['audio_codec'])
 
-        self.combo1.setCurrentText(self.options['profile'])
-        self.combo2.setCurrentText(self.options['video_codec'])
-        self.combo3.setCurrentText(self.options['audio_codec'])
+        self.custSizeField = QLineEdit(self)
+        self.custSizeField.setPlaceholderText("Custom File Size (MB)")
+        self.custSizeField.setValidator(QDoubleValidator(self))
 
-        self.textField = QLineEdit(self)
-        self.textField.setPlaceholderText("Custom File Size (MB)")
-        self.textField.setValidator(QDoubleValidator(self))
+        self.custSizeField.setHidden(True)
 
-        self.textField.setHidden(True)
 
-        size =self.options['target_size_bytes']
+        size = self.options['target_size_bytes']
         if size == 500 * 1024 * 1024:
             size_option = 'Nitro (500MB)'
         elif size == 50 * 1024 * 1024:
@@ -194,11 +204,11 @@ class SetOptions(QDialog):
         elif size == 10 * 1024 * 1024:
             size_option = 'Discord (10MB)'
         else:
-            self.textField.setText(str(size/1024/1024))
-            self.textField.setHidden(False)
+            self.custSizeField.setText(str(size/1024/1024))
+            self.custSizeField.setHidden(False)
             size_option = 'Custom'
 
-        self.combo4.setCurrentText(size_option)
+        self.size.setCurrentText(size_option)
         layout.setSpacing(15)
         layout.setContentsMargins(48, 24, 48, 24)
         # Add drop-downs and labels to the layout
@@ -213,27 +223,33 @@ class SetOptions(QDialog):
         layout.addWidget(lable)
 
 
+        layout.addWidget(QLabel('SPEED'))
+        layout.addWidget(self.preset)
+
+        spacer = QSpacerItem(0, 8)
+        layout.addItem(spacer)
+
         layout.addWidget(QLabel('PROFILE'))
-        layout.addWidget(self.combo1)
+        layout.addWidget(self.profile)
 
         spacer = QSpacerItem(0, 8)
         layout.addItem(spacer)
 
         layout.addWidget(QLabel('VIDEO CODEC'))
-        layout.addWidget(self.combo2)
+        layout.addWidget(self.v_codec)
 
         spacer = QSpacerItem(0, 8)
         layout.addItem(spacer)
 
         layout.addWidget(QLabel('AUDIO CODEC'))
-        layout.addWidget(self.combo3)
+        layout.addWidget(self.a_codec)
 
         spacer = QSpacerItem(0, 8)
         layout.addItem(spacer)
 
         layout.addWidget(QLabel('FILE SIZE'))
-        layout.addWidget(self.combo4)
-        layout.addWidget(self.textField)
+        layout.addWidget(self.size)
+        layout.addWidget(self.custSizeField)
 
         spacer = QSpacerItem(0, 16)
         layout.addItem(spacer)
@@ -249,26 +265,40 @@ class SetOptions(QDialog):
         # Set the layout for the dialog
         self.setLayout(layout)
 
-    def handleComboBoxChange(self, text):
-        # Show the text field when "Show Text Field" is selected
+    def sizeChange(self, text):
         if text == "Custom":
-            self.textField.setHidden(False)
+            self.custSizeField.setHidden(False)
         else:
+            self.custSizeField.setHidden(True)
+            
+    def v_codecChange(self, text):
+        hdot = [
+            '264',
+            '265',
+            'hevc'
+        ]
+        if any(sub in text for sub in hdot):
             self.textField.setHidden(True)
+            combo5.clear() 
+            self.combo5.addItems(["baseline", "main", "high"])
+        elif "av1" in text:
+            self.textField.setHidden(True)
+            combo5.clear() 
+            self.combo5.addItems(["main", "high"])
 
     def submit(self):
         # Handle submission of selections
-        choice1 = self.combo1.currentText()
-        choice2 = self.combo2.currentText()
-        choice3 = self.combo3.currentText()
-        choice4 = self.combo4.currentText()
+        choice_preset = self.preset.currentText()
+        choice_profile = self.profile.currentText()
+        choice_v_codec = self.v_codec.currentText()
+        choice_a_codec = self.a_codec.currentText()
+        choice_size = self.size.currentText()
 
-
-        if choice4 == 'Nitro (500MB)':
+        if choice_size == 'Nitro (500MB)':
             SIZE = 500 * 1024 * 1024
-        elif choice4 == 'Nitro Basic (50MB)':
+        elif choice_size == 'Nitro Basic (50MB)':
             SIZE = 50 * 1024 * 1024
-        elif choice4 =='Custom':
+        elif choice_size =='Custom':
             val = self.textField.text()
             if val != "":
                 SIZE = float(val) * 1024 * 1024
@@ -280,9 +310,10 @@ class SetOptions(QDialog):
             SIZE = 10 * 1024 * 1024
 
         self.options['target_size_bytes'] =  SIZE
-        self.options['profile'] = choice1
-        self.options['video_codec'] = choice2
-        self.options['audio_codec'] = choice3
+        self.options['preset'] = choice_preset
+        self.options['profile'] = choice_profile
+        self.options['video_codec'] = choice_v_codec
+        self.options['audio_codec'] = choice_a_codec
         self.save = True
         self.accept()  # Close the dialog when done
 
@@ -408,7 +439,7 @@ class DragDropWindow(QWidget):
             print(f"ERROR: subprocess didn't work {os.name}, {path}")
 
     def showOptionsWindow(self):
-        options_window = SetOptions(self, self.options)
+        options_window = SetOptions(self, self.options, self.worker.getCodecs())
         options_window.exec_()
         if options_window.save == True:
             self.writeOptions()
@@ -428,13 +459,15 @@ class DragDropWindow(QWidget):
         except:
             self.options = {
                 'target_size_bytes': 10 * 1024 * 1024,
-                'profile': 'slow',
+                'preset': 'slow',
+                'profile': 'high',
                 'video_codec': 'libx264',
                 'audio_codec': 'libopus'
             }
 
-    def on_loading_complete(self, log):
+    def on_loading_complete(self, log, videosCompessed, videosFailed, videosSkipped):
         self.movie.stop()  # Stop the loading animation
+        self.setStyleSheet(self.stylesheets.main_stylesheet)
         self.setStyleSheet(self.stylesheets.main_stylesheet)
         self.loading_label.setVisible(False)  # Hide the loading spinner
         self.show_folder_btn.setEnabled(True)
@@ -443,7 +476,12 @@ class DragDropWindow(QWidget):
         self.label.setStyleSheet("font-size: 16px; color: white;")
         msg = self.make_popup_window(None, "Report", log, "")
         self.show_folder_btn.setText(" Show Output Folder  ")
-        self.label.setText(f"Files Compessed\nDrag and drop more videos here")  # Show the file path
+        if videosFailed > 0:
+            self.label.setText(f"One or more videos failed to compress to the target size\nCheck compession settings and try again\n\nDrag and drop more videos here")
+        elif videosSkipped > 0 and videosCompessed == 0:
+            self.label.setText(f"Drag and drop more videos here")
+        else:
+            self.label.setText(f"Videos Compessed\nDrag and drop more videos here")
         if log != "":
             msg.exec()
 

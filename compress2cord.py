@@ -6,7 +6,7 @@ import os
 
 class VideoCompressor:
 
-    def __init__(self, target_size_bytes, profile='slow', video_codec='libx264', audio_codec='libopus'):
+    def __init__(self, target_size_bytes, preset='slow', profile='high', video_codec='libx264', audio_codec='libopus'):
         if os.name == 'nt':
             self.ffmpeg_bin = self.getAssetPath("ffmpeg.exe")
             self.ffprobe_bin = self.getAssetPath("ffprobe.exe")
@@ -15,9 +15,13 @@ class VideoCompressor:
             self.ffprobe_bin = "/usr/bin/ffprobe"
         print(self.ffmpeg_bin)
         print(self.ffprobe_bin)
+        self.videosCompessed = 0
+        self.videosFailed = 0
+        self.videosSkipped = 0
         self.log = ""
         self.options = {
             'target_size_bytes': target_size_bytes,
+            'preset': preset,
             'profile': profile,
             'video_codec': video_codec,
             'audio_codec': audio_codec
@@ -104,6 +108,7 @@ class VideoCompressor:
             meta_data = self.getVideoInfo(file)
         except:
             self.inform("ERROR", f"{file} Codec metadata was not readable")
+            self.videosFailed += 1
             return
         file_size = int(meta_data['filesize']/1024/1024)
         file_bitrate = meta_data['bitrate']
@@ -124,21 +129,71 @@ class VideoCompressor:
             "-maxrate", str(target_bitrate),
             "-bufsize", str(target_bitrate),
             '-vf', f"scale=-2:{target_resolution}",
-            "-preset", self.options['profile']
+            "-profile:v", self.options['profile'],
+            "-preset", self.options['preset']
         ]
         command += audio_options
         command += [target_path]
         if not (target_bitrate >= meta_data["bitrate"]):
             self.inform("INFO", f"Targeting ~{int(size_bytes/1024/1024)}MB with {int(target_bitrate/1024)}kbps @ {target_resolution}p\n")
             #if (target_bitrate > 18000):
-            subprocess.run(command)
+            result = subprocess.run(command) 
+            #result = subprocess.run(command, capture_output=True) 
             #else:
             #    print(f"ERROR: {file} is too big to be compressed to {int(size_bytes/1024/1024)}MB. Skipping...")
             self.inform("INFO", f"Wrote {target_path}")
+            if result.returncode == 0:
+                self.videosCompessed += 1
+            else:
+                self.videosFailed += 1
         else:
             self.inform("WARN", f"{file} was already smaller then {int(size_bytes/1024/1024)}MB.")
+            self.videosSkipped += 1
+
+    def getCodecs(self):
+        command = [
+            self.ffprobe_bin,
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
+            "-encoders"
+        ]
+        
+        allowed_audio_codecs = [
+            'libopus',
+            'aac',
+        ]
+        
+        allowed_video_codecs = [
+            '264',
+            '265','hevc',
+            'av1',
+            'vp9'
+        ]
+        
+        codecs = {}
+        video = []
+        audio = []
+        result = subprocess.run(command, capture_output=True, text=True)
+        stdout = result.stdout.split("\n")
+        for line in stdout:
+            codec = line.strip().split()
+            if len(codec) > 1:
+                if "V" in codec[0] and any(sub in codec[1] for sub in allowed_video_codecs):
+                    video += [codec[1]]
+                elif "A" in codec[0] and any(sub in codec[1] for sub in allowed_audio_codecs):
+                    audio += [codec[1]]
+        video += ['vnull']
+        audio += ['disabled']
+        codecs['video'] = video
+        codecs['audio'] = audio
+        return codecs
 
     def clearLog(self):
+        self.videosCompessed = 0
+        self.videosFailed = 0
+        self.videosSkipped = 0
         self.log=""
 
     def inform(self, msg_type, msg):
@@ -181,7 +236,7 @@ if __name__ == '__main__':
         SIZE = 10 * 1024 * 1024
 
     if len(sys.argv) > 1:
-        compressor = VideoCompressor(SIZE, "fast", "libx264", "libopus")
+        compressor = VideoCompressor(SIZE, "fast", "high", "libx264", "libopus")
         file = os.path.abspath(sys.argv[-1])
         compressor.compressVideo(file)
     else:
