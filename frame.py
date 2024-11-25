@@ -284,12 +284,12 @@ class SetOptions(QDialog):
             
         if text in known_codecs:
             self.setCodecSettings(known_codecs[text]['profiles'], known_codecs[text]['preset']) 
-        #elif any(sub in text for sub in ['264','265','hevc']):
-        #    self.setCodecSettings(["baseline", "main", "high"],["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
-        #elif "av1" in text:
-        #    self.setCodecSettings(None, None)
-        #elif "vp9" in text:
-        #    self.setCodecSettings(None, None)
+        elif any(sub in text for sub in ['264','265','hevc']):
+            self.setCodecSettings(["baseline", "main", "high"],["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
+        elif "av1" in text:
+            self.setCodecSettings(None,["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
+        elif "vp9" in text:
+            self.setCodecSettings(None,["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
         elif text == "vnull":
             self.setCodecSettings(None, None)
         else:
