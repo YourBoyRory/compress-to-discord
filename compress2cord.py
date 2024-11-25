@@ -6,7 +6,7 @@ import os
 
 class VideoCompressor:
 
-    def __init__(self, target_size_bytes, preset='slow', profile='high', video_codec='libx264', audio_codec='libopus'):
+    def __init__(self, options=None):
         if os.name == 'nt':
             self.ffmpeg_bin = self.getAssetPath("ffmpeg.exe")
             self.ffprobe_bin = self.getAssetPath("ffprobe.exe")
@@ -19,14 +19,17 @@ class VideoCompressor:
         self.videosFailed = 0
         self.videosSkipped = 0
         self.log = ""
-        self.options = {
-            'target_size_bytes': target_size_bytes,
-            'preset': preset,
-            'profile': profile,
-            'video_codec': video_codec,
-            'audio_codec': audio_codec
-        }
-
+        if options == None:
+            self.options = {
+                'file_size': 10 * 1024 * 1024,
+                'video_codec': 'libx264',
+                'speed': 'slow',
+                'profile': 'high',
+                'audio_codec': 'libopus'
+            }
+        else:
+            self.options = options
+        
     def getAssetPath(self, file):
         if getattr(sys, 'frozen', False):
             base_path = sys._MEIPASS
@@ -101,9 +104,20 @@ class VideoCompressor:
             audio_options = ["-acodec", self.options['audio_codec'], "-ac", "1", "-b:a", "1000"]
         return audio_options, bitrate
 
-
+    def getVideoOptions(self):
+        codec = ["-c:v", self.options['video_codec']]
+        profile = []
+        speed = []
+        if self.options['profile'] != "":
+            profile = ["-profile:v", self.options['profile']]
+        if self.options['speed'] != "":
+            speed = ["-preset", self.options['speed']]
+        print(self.options['profile'], self.options['speed'])
+        print(codec + profile + speed)
+        return codec + profile + speed
+        
     def compressVideo(self, file, target_path=None):
-        size_bytes = self.options['target_size_bytes']
+        size_bytes = self.options['file_size']
         try:
             meta_data = self.getVideoInfo(file)
         except:
@@ -120,18 +134,17 @@ class VideoCompressor:
         target_resolution = self.getTargetResolution(target_bitrate, file_resolution, meta_data["framerate"])
         self.inform("\nINFO", f"Input file {file_size}MB with {int(file_bitrate/1024)}kbps @ {file_resolution}p")
         audio_options, target_bitrate = self.getAudioBitrate(target_bitrate)
+        video_options = self.getVideoOptions()
         command = [
             self.ffmpeg_bin,
             "-y",
             "-i", file,
-            "-c:v", self.options['video_codec'],
             "-b:v", str(target_bitrate),
             "-maxrate", str(target_bitrate),
             "-bufsize", str(target_bitrate),
             '-vf', f"scale=-2:{target_resolution}",
-            "-profile:v", self.options['profile'],
-            "-preset", self.options['preset']
         ]
+        command += video_options
         command += audio_options
         command += [target_path]
         if not (target_bitrate >= meta_data["bitrate"]):

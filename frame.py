@@ -121,8 +121,8 @@ class Compess(QThread):
 
     def __init__(self, window, options):
         super().__init__()
-        self.SIZE = int(float(options["target_size_bytes"])/1024/1024)
-        self.compressor = VideoCompressor(options["target_size_bytes"], options["preset"], options["profile"], options["video_codec"], options["audio_codec"])
+        self.SIZE = int(float(options["file_size"])/1024/1024)
+        self.compressor = VideoCompressor(options)
         self.window = window
 
     def getCodecs(self):
@@ -132,8 +132,8 @@ class Compess(QThread):
         self.urls = urls
 
     def setOptions(self, options):
-        self.SIZE = int(float(options["target_size_bytes"])/1024/1024)
-        self.compressor = VideoCompressor(options["target_size_bytes"], options["preset"], options["profile"], options["video_codec"], options["audio_codec"])
+        self.SIZE = int(float(options["file_size"])/1024/1024)
+        self.compressor = VideoCompressor(options)
 
     def run(self):
         count=1
@@ -155,6 +155,7 @@ class SetOptions(QDialog):
         self.save = False
 
         self.options = options
+        self.codecs = codecs
         stylesheets = StyleSheets()
         self.setStyleSheet(stylesheets.options_stylesheet)
 
@@ -164,39 +165,30 @@ class SetOptions(QDialog):
 
         # Create layout
         layout = QVBoxLayout()
+        layout.setSpacing(15)
+        layout.setContentsMargins(48, 24, 48, 24)
 
+        title = QLabel('Compression Settings')
+        title.setStyleSheet("""
+            QLabel {
+                color: #f2f3f5;
+                font-weight: normal;
+                font-size: 16px;
+            }
+        """)
+        layout.addWidget(title)
 
-        # Create drop-down menus (QComboBox)
-        self.preset = QComboBox()
-        self.profile = QComboBox()
-        self.v_codec = QComboBox()
-        self.a_codec = QComboBox()
-        self.size = QComboBox()
+        #self.preset.addItems(["fast", "medium", "slow"])
+        #self.profile.addItems(["baseline", "main", "high"])
 
-        # Populate drop-downs with example items
-        self.preset.addItems(["fast", "medium", "slow"])
-        self.profile.addItems(["baseline", "main", "high"])
-        self.v_codec.addItems(codecs['video'])
-        self.a_codec.addItems(codecs['audio'])
-        self.size.addItems(['Nitro (500MB)', 'Nitro Basic (50MB)', 'Discord (10MB)', 'Custom'])
-
-        self.size.currentTextChanged.connect(self.sizeChange)
-        #self.combo2.currentTextChanged.connect(self.v_codecChange)
-        
-        self.preset.setCurrentText(self.options['preset'])
-        self.profile.setCurrentText(self.options['profile'])
-        self.v_codec.setCurrentText(self.options['video_codec'])
-        #self.v_codecChange(self.options['v_codec'])
-        self.a_codec.setCurrentText(self.options['audio_codec'])
-
+        # File Size
+        self.file_size_option, self.file_size_label = self.makeOption('file_size')
         self.custSizeField = QLineEdit(self)
         self.custSizeField.setPlaceholderText("Custom File Size (MB)")
         self.custSizeField.setValidator(QDoubleValidator(self))
-
         self.custSizeField.setHidden(True)
-
-
-        size = self.options['target_size_bytes']
+        self.file_size_option.currentTextChanged.connect(self.sizeChange)
+        size = self.options['file_size']
         if size == 500 * 1024 * 1024:
             size_option = 'Nitro (500MB)'
         elif size == 50 * 1024 * 1024:
@@ -207,63 +199,67 @@ class SetOptions(QDialog):
             self.custSizeField.setText(str(size/1024/1024))
             self.custSizeField.setHidden(False)
             size_option = 'Custom'
-
-        self.size.setCurrentText(size_option)
-        layout.setSpacing(15)
-        layout.setContentsMargins(48, 24, 48, 24)
-        # Add drop-downs and labels to the layout
-
-        lable = QLabel('Compression Settings')
-        lable.setStyleSheet("""
-            QLabel {
-                color: #f2f3f5;
-                font-size: 16px;
-            }
-        """)
-        layout.addWidget(lable)
-
-
-        layout.addWidget(QLabel('SPEED'))
-        layout.addWidget(self.preset)
-
-        spacer = QSpacerItem(0, 8)
-        layout.addItem(spacer)
-
-        layout.addWidget(QLabel('PROFILE'))
-        layout.addWidget(self.profile)
-
-        spacer = QSpacerItem(0, 8)
-        layout.addItem(spacer)
-
-        layout.addWidget(QLabel('VIDEO CODEC'))
-        layout.addWidget(self.v_codec)
-
-        spacer = QSpacerItem(0, 8)
-        layout.addItem(spacer)
-
-        layout.addWidget(QLabel('AUDIO CODEC'))
-        layout.addWidget(self.a_codec)
-
-        spacer = QSpacerItem(0, 8)
-        layout.addItem(spacer)
-
-        layout.addWidget(QLabel('FILE SIZE'))
-        layout.addWidget(self.size)
+        self.file_size_option.setCurrentText(size_option)
+        layout.addWidget(self.file_size_label)
+        layout.addWidget(self.file_size_option)
         layout.addWidget(self.custSizeField)
-
-        spacer = QSpacerItem(0, 16)
-        layout.addItem(spacer)
+        layout.addItem(QSpacerItem(0, 8))
+        
+        # Audio Codec
+        self.audio_codec_option, self.audio_codec_label = self.makeOption('audio_codec')
+        layout.addWidget(self.audio_codec_label)
+        layout.addWidget(self.audio_codec_option)
+        layout.addItem(QSpacerItem(0, 8))
+        
+        # Video Codec
+        self.video_codec_option, self.video_codec_label = self.makeOption('video_codec')
+        self.video_codec_option.currentTextChanged.connect(self.v_codecChange)
+        layout.addWidget(self.video_codec_label)
+        layout.addWidget(self.video_codec_option)
+        layout.addItem(QSpacerItem(0, 8))
+        
+        self.profile_option, self.profile_label = self.makeOption('profile')
+        layout.addWidget(self.profile_label)
+        layout.addWidget(self.profile_option)
+        layout.addItem(QSpacerItem(0, 8))
+        
+        self.speed_option, self.speed_label = self.makeOption('speed')
+        layout.addWidget(self.speed_label)
+        layout.addWidget(self.speed_option)
+        layout.addItem(QSpacerItem(0, 8))
 
         # Add a button to submit the choices
         submit_button = QPushButton('Save')
         submit_button.clicked.connect(self.submit)
         submit_button.setMaximumWidth(90)
         layout.addWidget(submit_button, Qt.AlignCenter)
+        
+        self.v_codecChange(self.video_codec_option.currentText())
 
         layout.addStretch()
 
         # Set the layout for the dialog
         self.setLayout(layout)
+
+    def makeOption(self, name):
+        comboBox = QComboBox()
+        lable = QLabel(name.upper().replace("_", " "))
+        comboBox.addItems(self.getItems(name, comboBox))
+        print(self.options, name)
+        comboBox.setCurrentText(str(self.options[name]))
+        return comboBox, lable
+            
+    def getItems(self, name, comboBox):
+        match name:
+            case "file_size":
+                return ['Nitro (500MB)', 'Nitro Basic (50MB)', 'Discord (10MB)', 'Custom']
+            case "video_codec":
+                return self.codecs['video']
+            case "audio_codec":
+                return self.codecs['audio']
+            case _:
+                return ['FIX ME']
+
 
     def sizeChange(self, text):
         if text == "Custom":
@@ -278,21 +274,56 @@ class SetOptions(QDialog):
             'hevc'
         ]
         if any(sub in text for sub in hdot):
-            self.textField.setHidden(True)
-            combo5.clear() 
-            self.combo5.addItems(["baseline", "main", "high"])
+            self.speed_label.setHidden(False)
+            self.speed_option.setHidden(False)
+            self.profile_label.setHidden(False)
+            self.profile_option.setHidden(False)
+            self.speed_option.clear() 
+            self.profile_option.clear()
+            if "nvenc" in text:
+                self.profile_option.addItems(["baseline", "main"])
+                self.speed_option.addItems(["fast", "medium", "slow"])
+            else:
+                self.profile_option.addItems(["baseline", "main", "high"])
+                self.speed_option.addItems(["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
+            self.profile_option.setCurrentText(str(self.options['profile']))
+            self.speed_option.setCurrentText(str(self.options['speed']))
         elif "av1" in text:
-            self.textField.setHidden(True)
-            combo5.clear() 
-            self.combo5.addItems(["main", "high"])
+            self.speed_label.setHidden(False)
+            self.speed_option.setHidden(False)
+            self.profile_label.setHidden(True)
+            self.profile_option.setHidden(True)
+            self.speed_option.clear() 
+            self.profile_option.clear() 
+            self.speed_option.addItems(["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
+            self.profile_option.addItems(["main"])
+            self.speed_option.setCurrentText(str(self.options['speed']))
+        elif "vp9" in text:
+            self.speed_label.setHidden(False)
+            self.speed_option.setHidden(False)
+            self.profile_label.setHidden(True)
+            self.profile_option.setHidden(True)
+            self.speed_option.clear() 
+            self.profile_option.clear()
+            self.speed_option.addItems(["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
+            self.speed_option.setCurrentText(str(self.options['speed']))
+        elif text == "vnull":
+            self.speed_label.setHidden(True)
+            self.speed_option.setHidden(True)
+            self.profile_label.setHidden(True)
+            self.profile_option.setHidden(True)
+            self.speed_option.clear() 
+            self.profile_option.clear()
+            
+            
 
     def submit(self):
         # Handle submission of selections
-        choice_preset = self.preset.currentText()
-        choice_profile = self.profile.currentText()
-        choice_v_codec = self.v_codec.currentText()
-        choice_a_codec = self.a_codec.currentText()
-        choice_size = self.size.currentText()
+        choice_preset = self.speed_option.currentText()
+        choice_profile = self.profile_option.currentText()
+        choice_v_codec = self.video_codec_option.currentText()
+        choice_a_codec = self.audio_codec_option.currentText()
+        choice_size = self.file_size_option.currentText()
 
         if choice_size == 'Nitro (500MB)':
             SIZE = 500 * 1024 * 1024
@@ -309,8 +340,8 @@ class SetOptions(QDialog):
         else:
             SIZE = 10 * 1024 * 1024
 
-        self.options['target_size_bytes'] =  SIZE
-        self.options['preset'] = choice_preset
+        self.options['file_size'] =  SIZE
+        self.options['speed'] = choice_preset
         self.options['profile'] = choice_profile
         self.options['video_codec'] = choice_v_codec
         self.options['audio_codec'] = choice_a_codec
@@ -458,8 +489,8 @@ class DragDropWindow(QWidget):
                 self.options = json.load(f)
         except:
             self.options = {
-                'target_size_bytes': 10 * 1024 * 1024,
-                'preset': 'slow',
+                'file_size': 10 * 1024 * 1024,
+                'speed': 'slow',
                 'profile': 'high',
                 'video_codec': 'libx264',
                 'audio_codec': 'libopus'
