@@ -1,0 +1,51 @@
+{
+  "hevc_nvenc": {
+    "profiles": ["baseline", "main"],
+    "preset": ["default", "slow", "medium", "fast"]
+  },
+  "h264_nvenc": {
+    "profiles": ["baseline", "main"],
+    "preset": ["default", "slow", "medium", "fast"]
+  },
+  "h264_amf": {
+    "profiles": ["main", "main"],
+    "preset": ["balanced", "speed", "quality"]
+  },
+  "hevc_amf": {
+    "profiles": ["-1", "main", "main10"],
+    "preset": ["quality", "balanced", "speed"]
+  },
+  "h264_qsv": {
+    "profiles": ["unknown", "baseline", "main", "high"],
+    "preset": ["veryfast", "veryfast", "fast", "medium", "slow", "slower", "veryslow"]
+  },
+  "hevc_qsv": {
+    "profiles": ["unknown", "main", "main10", "mainsp", "rext", "scc"],
+    "preset": ["veryfast", "veryfast", "fast", "medium", "slow", "slower", "veryslow"]
+  },
+  "h264_v4l2m2m": {
+    "profiles": [],
+    "preset": []
+  },
+  "hevc_v4l2m2m": {
+    "profiles": [],
+    "preset": []
+  },
+  "h264_vaapi": {
+    "profiles": ["main", "high", "high10"],
+    "preset": []
+  },
+  "hevc_vaapi": {
+    "profiles": ["main", "main10", "rext"],
+    "preset": []
+  },
+  "h264_vulkan": {
+    "profiles": ["main", "high", "high444p"],
+    "preset": []
+  },
+  "hevc_vulkan": {
+    "profiles": ["main", "main10", "rext"],
+    "preset": []
+  }
+}
+

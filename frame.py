@@ -258,7 +258,7 @@ class SetOptions(QDialog):
             case "audio_codec":
                 return self.codecs['audio']
             case _:
-                return ['FIX ME']
+                return []
 
 
     def sizeChange(self, text):
@@ -266,56 +266,58 @@ class SetOptions(QDialog):
             self.custSizeField.setHidden(False)
         else:
             self.custSizeField.setHidden(True)
-            
+        
+    def getFilePath(self, file):
+        if getattr(sys, 'frozen', False):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.dirname(__file__)
+        return os.path.join(base_path, 'etc', file)
+        
     def v_codecChange(self, text):
-        hdot = [
-            '264',
-            '265',
-            'hevc'
-        ]
-        if any(sub in text for sub in hdot):
-            self.speed_label.setHidden(False)
-            self.speed_option.setHidden(False)
+
+        try:
+            with open(self.getFilePath("known_codecs.json")) as f:
+                known_codecs = json.load(f)
+        except:    
+            known_codecs = {}
+            
+        if text in known_codecs:
+            self.setCodecSettings(known_codecs[text]['profiles'], known_codecs[text]['preset']) 
+        #elif any(sub in text for sub in ['264','265','hevc']):
+        #    self.setCodecSettings(["baseline", "main", "high"],["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
+        #elif "av1" in text:
+        #    self.setCodecSettings(None, None)
+        #elif "vp9" in text:
+        #    self.setCodecSettings(None, None)
+        elif text == "vnull":
+            self.setCodecSettings(None, None)
+        else:
+            self.setCodecSettings(None, None)
+
+    def setCodecSettings(self, profiles=[], speeds=[]):
+        self.speed_option.clear() 
+        self.profile_option.clear()
+        if profiles == [] or profiles == None:
+            self.profile_label.setHidden(True)
+            self.profile_option.setHidden(True)
+            self.profile_option.addItems([])
+        else:
             self.profile_label.setHidden(False)
             self.profile_option.setHidden(False)
-            self.speed_option.clear() 
-            self.profile_option.clear()
-            if "nvenc" in text:
-                self.profile_option.addItems(["baseline", "main"])
-                self.speed_option.addItems(["fast", "medium", "slow"])
-            else:
-                self.profile_option.addItems(["baseline", "main", "high"])
-                self.speed_option.addItems(["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
-            self.profile_option.setCurrentText(str(self.options['profile']))
-            self.speed_option.setCurrentText(str(self.options['speed']))
-        elif "av1" in text:
-            self.speed_label.setHidden(False)
-            self.speed_option.setHidden(False)
-            self.profile_label.setHidden(True)
-            self.profile_option.setHidden(True)
-            self.speed_option.clear() 
-            self.profile_option.clear() 
-            self.speed_option.addItems(["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
-            self.profile_option.addItems(["main"])
-            self.speed_option.setCurrentText(str(self.options['speed']))
-        elif "vp9" in text:
-            self.speed_label.setHidden(False)
-            self.speed_option.setHidden(False)
-            self.profile_label.setHidden(True)
-            self.profile_option.setHidden(True)
-            self.speed_option.clear() 
-            self.profile_option.clear()
-            self.speed_option.addItems(["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
-            self.speed_option.setCurrentText(str(self.options['speed']))
-        elif text == "vnull":
+            self.profile_option.addItems(profiles)
+        if speeds == [] or profiles == None:
             self.speed_label.setHidden(True)
             self.speed_option.setHidden(True)
-            self.profile_label.setHidden(True)
-            self.profile_option.setHidden(True)
-            self.speed_option.clear() 
-            self.profile_option.clear()
-            
-            
+            self.speed_option.addItems([])
+        else:
+            self.speed_label.setHidden(False)
+            self.speed_option.setHidden(False)
+            self.speed_option.addItems(speeds)
+        self.profile_option.setCurrentText(str(self.options['profile']))
+        self.speed_option.setCurrentText(str(self.options['speed']))
+
+
 
     def submit(self):
         # Handle submission of selections
