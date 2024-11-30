@@ -18,7 +18,7 @@ The app supports two modes:
   
  
 ## Install Stand Alone (Windows and Linux)
-Download and extract the package for your platform in the Relases Tab and run the install script
+Download and extract the package for your platform in the Releases Tab and run the install script
 
 ## Install from Git (Linux)
 
@@ -27,26 +27,32 @@ Download and extract the package for your platform in the Relases Tab and run th
 - FFmpeg (ensure it's installed and added to your system's PATH)
 
 1.  **Clone the repository**:
+   
 	```bash
 	git clone https://github.com/YourBoyRory/compress-to-discord.git
 	```
+ 
 2.  **CD to the folder**:
+   
 	```bash
 	cd compress-to-discord
 	```
-3.  **Run install script**:
+ 
+3.  **Run install script (creates venv and install dependencies)**:
+   
 	```bash
 	./install.sh
 	```
+ 
 
 ## Usage
 
 ### Using the GUI
 
 1.  Run the application with no launch arguments
-2. Change compession settings by pressing the cog in the top left corner if desired
+2. Change compression settings by pressing the cog in the top left corner if desired
 3.  In the GUI, drag and drop your source video file
-4. Retreive your videos by clicking "Show Output Folder"
+4. Retrieve your videos by clicking "Show Output Folder"
     
 
 ### Using from Command Line
