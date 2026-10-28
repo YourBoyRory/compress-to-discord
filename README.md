@@ -9,9 +9,9 @@ The app supports two modes:
 
 ## Features
 - **Compress videos to fit Discord's file size limits**:
-  - **Nitro (500MB)**
+  - **Nitro (1GB)**
   - **Nitro Basic (50MB)**
-  - **Normal (10MB)**
+  - **Normal (20MB)**
   - **Custom Size** (choose your own target size in MB)
 - **Supports video compression from the GUI or command line**.
 
@@ -72,12 +72,12 @@ Where `<path_to_video>` is the full path to your source video file. You can also
 -   **--custom** : Compress the video to a custom size in MB (e.g., `--custom 20` for 20MB).
 
 ### Example Command:
-1.  **Compress to Discord (10MB)**:
+1.  **Compress to Discord (20MB)**:
     
     ```bash
     compress2cord /path/to/video.mp4
     ```
-2.  **Compress to Nitro (500MB)**:
+2.  **Compress to Nitro (1GB)**:
     
     ```bash
     compress2cord --nitro /path/to/video.mp4
@@ -89,10 +89,10 @@ Where `<path_to_video>` is the full path to your source video file. You can also
     compress2cord --basic /path/to/video.mp4
     ```
     
-4.  **Compress to a Custom Size (20MB)**:
+4.  **Compress to a Custom Size (8MB)**:
     
     ```bash
-    compress2cord --custom 20 /path/to/video.mp4
+    compress2cord --custom 8 /path/to/video.mp4
     ```
     
 
