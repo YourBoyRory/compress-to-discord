@@ -144,7 +144,7 @@ class Compess(QThread):
             output_file = str(os.path.join(os.path.expanduser("~"), "Videos", "compess2cord", os.path.splitext(os.path.basename(input_file))[0] + ".compressed.mp4"))
             self.compressor.compressVideo(input_file, output_file)
             count+=1
-            
+
         self.finished.emit(self.compressor.log, self.compressor.videosCompessed, self.compressor.videosFailed, self.compressor.videosSkipped)
         self.compressor.clearLog()
 
@@ -204,25 +204,25 @@ class SetOptions(QDialog):
         layout.addWidget(self.file_size_option)
         layout.addWidget(self.custSizeField)
         layout.addItem(QSpacerItem(0, 8))
-        
+
         # Audio Codec
         self.audio_codec_option, self.audio_codec_label = self.makeOption('audio_codec')
         layout.addWidget(self.audio_codec_label)
         layout.addWidget(self.audio_codec_option)
         layout.addItem(QSpacerItem(0, 8))
-        
+
         # Video Codec
         self.video_codec_option, self.video_codec_label = self.makeOption('video_codec')
         self.video_codec_option.currentTextChanged.connect(self.v_codecChange)
         layout.addWidget(self.video_codec_label)
         layout.addWidget(self.video_codec_option)
         layout.addItem(QSpacerItem(0, 8))
-        
+
         self.profile_option, self.profile_label = self.makeOption('profile')
         layout.addWidget(self.profile_label)
         layout.addWidget(self.profile_option)
         layout.addItem(QSpacerItem(0, 8))
-        
+
         self.speed_option, self.speed_label = self.makeOption('speed')
         layout.addWidget(self.speed_label)
         layout.addWidget(self.speed_option)
@@ -233,7 +233,7 @@ class SetOptions(QDialog):
         submit_button.clicked.connect(self.submit)
         submit_button.setMaximumWidth(90)
         layout.addWidget(submit_button, Qt.AlignCenter)
-        
+
         self.v_codecChange(self.video_codec_option.currentText())
 
         layout.addStretch()
@@ -248,11 +248,11 @@ class SetOptions(QDialog):
         print(self.options, name)
         comboBox.setCurrentText(str(self.options[name]))
         return comboBox, lable
-            
+
     def getItems(self, name, comboBox):
         match name:
             case "file_size":
-                return ['Nitro (500MB)', 'Nitro Basic (50MB)', 'Discord (10MB)', 'Custom']
+                return ['Nitro (1GB)', 'Nitro Basic (50MB)', 'Discord (20MB)', 'Custom']
             case "video_codec":
                 return self.codecs['video']
             case "audio_codec":
@@ -266,24 +266,24 @@ class SetOptions(QDialog):
             self.custSizeField.setHidden(False)
         else:
             self.custSizeField.setHidden(True)
-        
+
     def getFilePath(self, file):
         if getattr(sys, 'frozen', False):
             base_path = sys._MEIPASS
         else:
             base_path = os.path.dirname(__file__)
         return os.path.join(base_path, 'etc', file)
-        
+
     def v_codecChange(self, text):
 
         try:
             with open(self.getFilePath("known_codecs.json")) as f:
                 known_codecs = json.load(f)
-        except:    
+        except:
             known_codecs = {}
-            
+
         if text in known_codecs:
-            self.setCodecSettings(known_codecs[text]['profiles'], known_codecs[text]['preset']) 
+            self.setCodecSettings(known_codecs[text]['profiles'], known_codecs[text]['preset'])
         elif any(sub in text for sub in ['264','265','hevc']):
             self.setCodecSettings(["baseline", "main", "high"],["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
         elif "av1" in text:
@@ -296,7 +296,7 @@ class SetOptions(QDialog):
             self.setCodecSettings(None, None)
 
     def setCodecSettings(self, profiles=[], speeds=[]):
-        self.speed_option.clear() 
+        self.speed_option.clear()
         self.profile_option.clear()
         if profiles == [] or profiles == None:
             self.profile_label.setHidden(True)
@@ -327,8 +327,8 @@ class SetOptions(QDialog):
         choice_a_codec = self.audio_codec_option.currentText()
         choice_size = self.file_size_option.currentText()
 
-        if choice_size == 'Nitro (500MB)':
-            SIZE = 500 * 1024 * 1024
+        if choice_size == 'Nitro (1GB)':
+            SIZE = 1000 * 1024 * 1024
         elif choice_size == 'Nitro Basic (50MB)':
             SIZE = 50 * 1024 * 1024
         elif choice_size =='Custom':
@@ -337,10 +337,10 @@ class SetOptions(QDialog):
                 SIZE = float(val) * 1024 * 1024
                 print(float(val), SIZE)
             else:
-                print("Defaulting to 10mb")
-                SIZE = 10 * 1024 * 1024
+                print("Defaulting to 20mb")
+                SIZE = 20 * 1024 * 1024
         else:
-            SIZE = 10 * 1024 * 1024
+            SIZE = 20 * 1024 * 1024
 
         self.options['file_size'] =  SIZE
         self.options['speed'] = choice_preset
