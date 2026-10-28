@@ -284,10 +284,10 @@ def parse_args():
     )
 
     parser.add_argument(
-        "video_path",
-        nargs="?",
+        "video_paths",
+        nargs="*",
         metavar="VIDEO_PATH",
-        help="Path to the video to compress."
+        help="One or more videos to compress."
     )
 
     args = parser.parse_args()
@@ -307,7 +307,7 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
 
-    if args.video_path:
+    if args.video_paths:
         compressor = VideoCompressor({
                 'file_size': args.size,
                 'video_codec': 'libx264',
@@ -316,8 +316,9 @@ if __name__ == "__main__":
                 'audio_codec': 'acc'
             }
         )
-        file = os.path.abspath(args.video_path)
-        compressor.compressVideo(file)
+        for video_path in args.video_paths:
+            file = os.path.abspath(video_path)
+            compressor.compressVideo(file)
     else:
         sys.path.append("/opt/compress2cord")
         from frame import SpawnFrame
