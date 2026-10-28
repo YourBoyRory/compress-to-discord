@@ -30,5 +30,6 @@ Exec=/usr/local/bin/compress2cord
 Icon=/opt/compress2cord/assets/icon.png
 Terminal=false
 Type=Application
+StartupWMClass=compress2cord.py
 Categories=Multimedia;Video;Utility;AudioVideo;
 EOF
