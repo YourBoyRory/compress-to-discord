@@ -8,6 +8,12 @@ from PyQt5.QtCore import Qt, QThread, QSize,  pyqtSignal
 from PyQt5.QtGui import QDragEnterEvent, QDoubleValidator, QDropEvent, QMovie, QFont, QFontDatabase, QIcon
 from PyQt5.QtWidgets import QFrame, QApplication, QWidget, QLabel, QVBoxLayout, QMessageBox, QPushButton, QDialog, QComboBox, QLineEdit, QSpacerItem, QSizePolicy
 
+
+NITRO_MB = (1000, 'Nitro (1GB)')
+NITRO_CLASSIC_MB = (50, 'Nitro Basic (50MB)')
+DISCORD_MB = (20, 'Discord (20MB)')
+CUSTOM_MB = (DISCORD_MB[0], 'Custom')
+
 class StyleSheets():
     def getAssetPath(file):
         if getattr(sys, 'frozen', False):
@@ -189,16 +195,16 @@ class SetOptions(QDialog):
         self.custSizeField.setHidden(True)
         self.file_size_option.currentTextChanged.connect(self.sizeChange)
         size = self.options['file_size']
-        if size == 500 * 1024 * 1024:
-            size_option = 'Nitro (500MB)'
-        elif size == 50 * 1024 * 1024:
-            size_option = 'Nitro Basic (50MB)'
-        elif size == 10 * 1024 * 1024:
-            size_option = 'Discord (10MB)'
+        if size == NITRO_MB[0] * 1024 * 1024:
+            size_option = NITRO_MB[1]
+        elif size == NITRO_CLASSIC_MB[0] * 1024 * 1024:
+            size_option = NITRO_CLASSIC_MB[1]
+        elif size == DISCORD_MB[0] * 1024 * 1024:
+            size_option = DISCORD_MB[1]
         else:
             self.custSizeField.setText(str(size/1024/1024))
             self.custSizeField.setHidden(False)
-            size_option = 'Custom'
+            size_option = CUSTOM_MB[1]
         self.file_size_option.setCurrentText(size_option)
         layout.addWidget(self.file_size_label)
         layout.addWidget(self.file_size_option)
@@ -252,7 +258,7 @@ class SetOptions(QDialog):
     def getItems(self, name, comboBox):
         match name:
             case "file_size":
-                return ['Nitro (1GB)', 'Nitro Basic (50MB)', 'Discord (20MB)', 'Custom']
+                return [NITRO_MB[1], NITRO_CLASSIC_MB[1],  DISCORD_MB[1], CUSTOM_MB[1]]
             case "video_codec":
                 return self.codecs['video']
             case "audio_codec":
@@ -327,20 +333,20 @@ class SetOptions(QDialog):
         choice_a_codec = self.audio_codec_option.currentText()
         choice_size = self.file_size_option.currentText()
 
-        if choice_size == 'Nitro (1GB)':
-            SIZE = 1000 * 1024 * 1024
-        elif choice_size == 'Nitro Basic (50MB)':
-            SIZE = 50 * 1024 * 1024
-        elif choice_size =='Custom':
+        if choice_size == NITRO_MB[1]:
+            SIZE = NITRO_MB[0] * 1024 * 1024
+        elif choice_size == NITRO_CLASSIC_MB[1]:
+            SIZE = NITRO_CLASSIC_MB[0] * 1024 * 1024
+        elif choice_size == CUSTOM_MB[1]:
             val = self.custSizeField.text()
             if val != "":
                 SIZE = float(val) * 1024 * 1024
                 print(float(val), SIZE)
             else:
-                print("Defaulting to 20mb")
-                SIZE = 20 * 1024 * 1024
+                print(f"Defaulting to {CUSTOM_MB[0]}mb")
+                SIZE = CUSTOM_MB[0] * 1024 * 1024
         else:
-            SIZE = 20 * 1024 * 1024
+            SIZE = DISCORD_MB[0] * 1024 * 1024
 
         self.options['file_size'] =  SIZE
         self.options['speed'] = choice_preset
