@@ -2,7 +2,9 @@ import sys
 import time
 import os
 import json
+import re
 import subprocess
+import threading
 from compress2cord import VideoCompressor
 from PyQt5.QtCore import Qt, QThread, QSize,  pyqtSignal
 from PyQt5.QtGui import QDragEnterEvent, QDoubleValidator, QDropEvent, QMovie, QFont, QFontDatabase, QIcon
@@ -127,6 +129,7 @@ class Compess(QThread):
 
     def __init__(self, window, options):
         super().__init__()
+        self._stop_event = threading.Event()
         self.SIZE = int(float(options["file_size"])/1024/1024)
         self.compressor = VideoCompressor(options)
         self.window = window
@@ -144,15 +147,60 @@ class Compess(QThread):
     def run(self):
         count=1
         for file in self.urls:
+            error_message = "Error while opening encoder - maybe incorrect parameters such as bit_rate, rate, width or height."
             self.window.show_folder_btn.setText(f"[{count}/{len(self.urls)}] Compressing to {self.SIZE}MB...")
             input_file = os.path.abspath(file.toLocalFile())
+            file_name = os.path.basename(input_file)
+            self.window.label.setText(f"{file_name}\n")
             os.makedirs(os.path.join(os.path.expanduser("~"), "Videos", "compess2cord"), exist_ok=True)
             output_file = str(os.path.join(os.path.expanduser("~"), "Videos", "compess2cord", os.path.splitext(os.path.basename(input_file))[0] + ".compressed.mp4"))
-            self.compressor.compressVideo(input_file, output_file)
-            count+=1
+            process, frame_count = self.compressor.compressVideo(input_file, output_file, False)
+            if process:
+                last_time_sec = None
+                for line in process.stdout:
+                    if self._stop_event.is_set():
+                        process.kill()
+                        return
+                    print(line, end="")
+                    for helpful_error_match in ['[error]','Cannot load', "Impossible to convert", "failed to open"]:
+                        if helpful_error_match in line:
+                            error_message = line
+                    match = re.search(r'frame=\s*(\d+)\s+fps=\s*(\d+)', line)
+                    if match:
+                        frame=int(match.group(1))
+                        fps=int(match.group(2))
+                        percent = int((frame/frame_count)*100)
+                        if fps > 0:
+                            time_sec = (frame_count-frame)//max(fps,1)
+                            if last_time_sec == None:
+                                last_time_sec = time_sec+1
+                            if last_time_sec > time_sec:
+                                if time_sec >= 55:
+                                    time = f"{round(time_sec / 60)} minutes remain"
+                                elif time_sec <= 1:
+                                    time = f"1 second remain"
+                                elif time_sec < 10:
+                                    time = f"{time_sec} seconds remain"
+                                else:
+                                    time = f"{round(time_sec / 10) * 10} seconds remain"
+                                self.window.label.setText(f"{file_name}\n{time} - {percent}%")
+                                last_time_sec = time_sec
+                self.window.label.setText(f"{file_name}\n0 seconds remain - 100%")
+                process.wait()
+                count+=1
+                if process.returncode == 0:
+                    self.compressor.videosCompessed += 1
+                else:
+                    self.compressor.videosFailed += 1
+                    self.compressor.inform("ERROR", f"{input_file} {error_message}")
+
 
         self.finished.emit(self.compressor.log, self.compressor.videosCompessed, self.compressor.videosFailed, self.compressor.videosSkipped)
         self.compressor.clearLog()
+
+    def stop(self):
+        self._stop_event.set()
+        self.wait()
 
 class SetOptions(QDialog):
     def __init__(self, parent=None, options=None, codecs=None):
@@ -291,7 +339,7 @@ class SetOptions(QDialog):
         if text in known_codecs:
             self.setCodecSettings(known_codecs[text]['profiles'], known_codecs[text]['preset'])
         elif any(sub in text for sub in ['264','265','hevc']):
-            self.setCodecSettings(["baseline", "main", "high"],["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
+            self.setCodecSettings(["baseline", "main", "high", "high10"],["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
         elif "av1" in text:
             self.setCodecSettings(None,["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
         elif "vp9" in text:
@@ -456,7 +504,7 @@ class DragDropWindow(QWidget):
             self.loading_label.setVisible(True)  # Show the loading spinner
             self.show_folder_btn.setEnabled(False)
             self.show_folder_btn.setIconSize(QSize(0, 0))
-            self.label.setVisible(False)
+            #self.label.setVisible(False)
             self.movie.start()  # Start the loading animation
             self.setStyleSheet(self.stylesheets.main_stylesheet)
             self.worker.setBatch(urls)
@@ -511,7 +559,7 @@ class DragDropWindow(QWidget):
         self.loading_label.setVisible(False)  # Hide the loading spinner
         self.show_folder_btn.setEnabled(True)
         self.show_folder_btn.setIconSize(QSize(21, 21))
-        self.label.setVisible(True)
+        #self.label.setVisible(True)
         self.label.setStyleSheet("font-size: 16px; color: white;")
         msg = self.make_popup_window(None, "Report", log, "")
         self.show_folder_btn.setText(" Show Output Folder  ")
@@ -546,6 +594,11 @@ class DragDropWindow(QWidget):
         else:
             base_path = os.path.dirname(__file__)
         return os.path.join(base_path, 'assets', file)
+
+    def closeEvent(self, event):
+        if self.worker.isRunning():
+            self.worker.stop()
+        event.accept()
 
 class SpawnFrame():
     def __init__(self):

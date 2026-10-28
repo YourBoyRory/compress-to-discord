@@ -29,7 +29,7 @@ class VideoCompressor:
             }
         else:
             self.options = options
-        
+
     def getAssetPath(self, file):
         if getattr(sys, 'frozen', False):
             base_path = sys._MEIPASS
@@ -70,18 +70,21 @@ class VideoCompressor:
             raise
         meta_data = json.loads(result.stdout)
         for steam in meta_data['streams']:
-            try:
-                meta_data_trimmed["duration"] = float(steam['duration'])
-                meta_data_trimmed["bitrate"] = float(steam['bit_rate'])
-                meta_data_trimmed["resolution"] = steam['height']
-                meta_data_trimmed["framerate"] = eval(steam['r_frame_rate'])
-            except:
-                meta_data_trimmed = {}
-            if meta_data_trimmed != {}:
-                break
+            if steam.get('codec_type', None) == 'video':
+                try:
+                    meta_data_trimmed["duration"] = float(steam['duration'])
+                    meta_data_trimmed["nb_frames"] = int(steam['nb_frames'])
+                    meta_data_trimmed["bitrate"] = float(steam['bit_rate'])
+                    meta_data_trimmed["resolution"] = steam['height']
+                    meta_data_trimmed["framerate"] = eval(steam['r_frame_rate'])
+                except:
+                    meta_data_trimmed = {}
+                if meta_data_trimmed != {}:
+                    break
         if meta_data_trimmed == {}:
             meta_data_trimmed["duration"] = float(meta_data['format']['duration'])
             meta_data_trimmed["bitrate"] = float(meta_data['format']['bit_rate'])
+            meta_data_trimmed["nb_frames"] = 0
             meta_data_trimmed["resolution"] = "Unknown"
             meta_data_trimmed["framerate"] = 30
         meta_data_trimmed["filesize"] = float(meta_data['format']['size'])
@@ -115,8 +118,8 @@ class VideoCompressor:
         print(self.options['profile'], self.options['speed'])
         print(codec + profile + speed)
         return codec + profile + speed
-        
-    def compressVideo(self, file, target_path=None):
+
+    def compressVideo(self, file, target_path=None, wait=True):
         size_bytes = self.options['file_size']
         try:
             meta_data = self.getVideoInfo(file)
@@ -149,19 +152,26 @@ class VideoCompressor:
         command += [target_path]
         if not (target_bitrate >= meta_data["bitrate"]):
             self.inform("INFO", f"Targeting ~{int(size_bytes/1024/1024)}MB with {int(target_bitrate/1024)}kbps @ {target_resolution}p\n")
-            #if (target_bitrate > 18000):
-            result = subprocess.run(command) 
-            #result = subprocess.run(command, capture_output=True) 
-            #else:
-            #    print(f"ERROR: {file} is too big to be compressed to {int(size_bytes/1024/1024)}MB. Skipping...")
-            self.inform("INFO", f"Wrote {target_path}")
-            if result.returncode == 0:
-                self.videosCompessed += 1
+            result = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1
+            )
+            if wait:
+                result.wait()
+                self.inform("INFO", f"Wrote {target_path}")
+                if result.returncode == 0:
+                    self.videosCompessed += 1
+                else:
+                    self.videosFailed += 1
             else:
-                self.videosFailed += 1
+                return result, meta_data['nb_frames']
         else:
             self.inform("WARN", f"{file} was already smaller then {int(size_bytes/1024/1024)}MB.")
             self.videosSkipped += 1
+            return None, None
 
     def getCodecs(self):
         command = [
@@ -172,19 +182,19 @@ class VideoCompressor:
             "json",
             "-encoders"
         ]
-        
+
         allowed_audio_codecs = [
             'libopus',
             'aac',
         ]
-        
+
         allowed_video_codecs = [
             '264',
             '265','hevc',
             'av1',
             'vp9'
         ]
-        
+
         codecs = {}
         video = []
         audio = []
