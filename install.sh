@@ -18,7 +18,7 @@ sudo /opt/compress2cord/venv/bin/pip install -r requirements-linux.txt
 sudo tee /usr/local/bin/compress2cord > /dev/null <<EOF
 #!/bin/bash
 source /opt/compress2cord/venv/bin/activate
-python /opt/compress2cord/frame.py $@
+python /opt/compress2cord/compress2cord.py "\$@"
 EOF
 sudo chmod +x /usr/local/bin/compress2cord
 sudo tee /usr/share/applications/compress2cord.desktop > /dev/null <<EOF

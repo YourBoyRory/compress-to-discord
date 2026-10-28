@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import subprocess
+import argparse
 import json
 import sys
 import os
@@ -231,40 +232,94 @@ def showHelp():
     print("\nUSAGE:\n")
     print(f"    {sys.argv[0]} [Options] [VIDEO_PATH]\n\n")
     print("    -h; --help                 Show this help dialog.")
-    print("    --custom [float|int]       Set the target file size. You can set this to \"25\"")
+    print("    --custom [float|int]       Set a custom target file size.")
     print("                               if you still have access to the old larger file size limit.\n\n")
     print("PRESETS:\n")
-    print("    --nitro                    Compresses within the Discord Nitro file size limit (500MB).")
+    print("    --nitro                    Compresses within the Discord Nitro file size limit (1GB).")
     print("    --nitro-basic; --basic     Compresses within the Discord Nitro Basic file size limit (50MB).")
     print("    --old                      Compresses within the old file size limit (8MB).\n")
 
-if __name__ == '__main__':
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Compress2Cord compresses a video to fit within "
+            "a Discord attachment file size limit."
+        ),
+        epilog="If no VIDEO_PATH is provided, the GUI will launch."
+    )
 
-    if "--help" in sys.argv or "-h" in sys.argv:
-        print("\n    Compress2Cord is a python script that will compress a video to fit as an attachment")
-        print("    on Discord. By default, this script will compress a provided video at 10MB, but")
-        print("    this can be customized.\n")
-        showHelp()
-        exit()
-    elif "--nitro-basic" in sys.argv or "--basic" in sys.argv:
-        SIZE = 50 * 1024 * 1024
-    elif "--nitro" in sys.argv:
-        SIZE = 500 * 1024 * 1024
-    elif "--custom" in sys.argv:
-        i = sys.argv.index("--custom")+1
-        SIZE = float(sys.argv[i]) * 1024 * 1024
-    elif "--old" in sys.argv:
-        SIZE = 8 * 1024 * 1024
-    else:
-        SIZE = 10 * 1024 * 1024
+    size_group = parser.add_mutually_exclusive_group()
 
-    if len(sys.argv) > 1:
-        compressor = VideoCompressor(SIZE, "fast", "high", "libx264", "libopus")
-        file = os.path.abspath(sys.argv[-1])
+    size_group.add_argument(
+        "--nitro",
+        action="store_const",
+        const=1000 * 1024 * 1024,
+        dest="size",
+        help="Compress within the Discord Nitro file size limit (1 GB)."
+    )
+
+    size_group.add_argument(
+        "--nitro-basic",
+        "--basic",
+        action="store_const",
+        const=50 * 1024 * 1024,
+        dest="size",
+        help="Compress within the Discord Nitro Basic limit (50 MB)."
+    )
+
+    size_group.add_argument(
+        "--old",
+        action="store_const",
+        const=8 * 1024 * 1024,
+        dest="size",
+        help="Compress within the old file size limit (8 MB)."
+    )
+
+    size_group.add_argument(
+        "--custom",
+        type=float,
+        metavar="MB",
+        dest="custom_size",
+        help="Set a custom target file size in MB."
+    )
+
+    parser.add_argument(
+        "video_path",
+        nargs="?",
+        metavar="VIDEO_PATH",
+        help="Path to the video to compress."
+    )
+
+    args = parser.parse_args()
+
+    # Default size: 20 MB
+    if args.custom_size is not None:
+        if args.custom_size <= 0:
+            parser.error("--custom must be greater than 0")
+
+        args.size = args.custom_size * 1024 * 1024
+    elif args.size is None:
+        args.size = 20 * 1024 * 1024
+
+    return args
+
+
+if __name__ == "__main__":
+    args = parse_args()
+
+    if args.video_path:
+        compressor = VideoCompressor({
+                'file_size': args.size,
+                'video_codec': 'libx264',
+                'speed': 'slow',
+                'profile': 'high',
+                'audio_codec': 'acc'
+            }
+        )
+        file = os.path.abspath(args.video_path)
         compressor.compressVideo(file)
     else:
-        sys.path.append('/opt/compress2cord')
+        sys.path.append("/opt/compress2cord")
         from frame import SpawnFrame
         SpawnFrame()
-        exit()
 
