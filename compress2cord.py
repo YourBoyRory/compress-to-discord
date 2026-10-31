@@ -247,11 +247,8 @@ class VideoCompressor:
         decode_options = []
         scale_param_base = f"=-2:{target_resolution}"
         scale_param = f"scale{scale_param_base}"
-        hwaccels = ['vdpau', 'cuda', 'vaapi', 'qsv', 'drm', 'opencl', 'vulkan']
+        hwaccels = ['vdpau', 'vaapi', 'qsv', 'drm', 'opencl', 'vulkan']
         hwaccel = next((hw for hw in hwaccels if hw in codec), None)
-        if 'nvenc' in codec:
-            decode_options = ['-hwaccel', 'cuda', "-hwaccel_output_format", 'cuda']
-            scale_param = f"scale_cuda{scale_param_base}"
         if 'amf' in codec:
             decode_options = ['-hwaccel', 'amf', "-hwaccel_output_format", 'amf']
         elif hwaccel:
