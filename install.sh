@@ -12,6 +12,7 @@ sudo chown root:root /usr/local/bin/compress2cord
 # install venv and dependecies
 sudo python -m venv /opt/compress2cord/venv
 source /opt/compress2cord/venv/bin/activate
+sudo /opt/compress2cord/venv/bin/python -m pip install --upgrade pip
 sudo /opt/compress2cord/venv/bin/pip install -r requirements-linux.txt
 
 # Make Launchers

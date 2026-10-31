@@ -6,15 +6,27 @@ import re
 import subprocess
 import threading
 from compress2cord import VideoCompressor
-from PyQt5.QtCore import Qt, QThread, QSize,  pyqtSignal
+from PyQt5.QtCore import Qt, QThread, QSize,  pyqtSignal, QTimer
 from PyQt5.QtGui import QDragEnterEvent, QDoubleValidator, QDropEvent, QMovie, QFont, QFontDatabase, QIcon
 from PyQt5.QtWidgets import QFrame, QApplication, QWidget, QLabel, QVBoxLayout, QMessageBox, QPushButton, QDialog, QComboBox, QLineEdit, QSpacerItem, QSizePolicy
-
 
 NITRO_MB = (1000, 'Nitro (1GB)')
 NITRO_CLASSIC_MB = (50, 'Nitro Basic (50MB)')
 DISCORD_MB = (20, 'Discord (20MB)')
 CUSTOM_MB = (DISCORD_MB[0], 'Custom')
+
+def venv_error(error):
+    import tkinter as tk
+    from tkinter import messagebox
+
+    if os.name == 'nt':
+        message = "Make sure the '_internal' folder privided with the download is updated and included in the same directory as the executable."
+    else:
+        message = "The python venv is corrupt or outdated. Please reinstall Compress2Cord."
+    root = tk.Tk()
+    root.withdraw()
+    messagebox.showerror("Error", f"{error}\n\n{message}")
+    root.destroy()
 
 class StyleSheets():
     def getAssetPath(file):
@@ -22,9 +34,15 @@ class StyleSheets():
             base_path = sys._MEIPASS
         else:
             base_path = os.path.dirname(__file__)
-        return os.path.join(base_path, 'assets', file)
+        full_path = os.path.join(base_path, 'assets', file)
+        if not os.path.exists(full_path):
+            raise FileNotFoundError(f"{full_path} not found.")
+        return full_path
 
-    image = getAssetPath("arrow.png")
+    try:
+        image = getAssetPath("arrow.png")
+    except FileNotFoundError as e:
+        image = "arrow.png"
 
     options_stylesheet = (f"""
         QWidget {{
@@ -130,6 +148,7 @@ class Compess(QThread):
     def __init__(self, window, options):
         super().__init__()
         self._stop_event = threading.Event()
+        self._skip_event = threading.Event()
         self.SIZE = int(float(options["file_size"])/1024/1024)
         self.compressor = VideoCompressor(options)
         self.window = window
@@ -146,27 +165,43 @@ class Compess(QThread):
 
     def run(self):
         count=1
+        self._skip_event.clear()
         for file in self.urls:
-            error_message = "Error while opening encoder - maybe incorrect parameters such as bit_rate, rate, width or height."
-            self.window.show_folder_btn.setText(f"[{count}/{len(self.urls)}] Compressing to {self.SIZE}MB...")
+            error_message = "Error while opening encoder - Might be a unsupported file or have a impossible filesize, codecs, or profile set."
             input_file = os.path.abspath(file.toLocalFile())
             file_name = os.path.basename(input_file)
+            file_name = file_name[:50] + "..." if len(file_name) > 10 else file_name
             self.window.label.setText(f"{file_name}\n")
             os.makedirs(os.path.join(os.path.expanduser("~"), "Videos", "compess2cord"), exist_ok=True)
             output_file = str(os.path.join(os.path.expanduser("~"), "Videos", "compess2cord", os.path.splitext(os.path.basename(input_file))[0] + ".compressed.mp4"))
-            process, frame_count = self.compressor.compressVideo(input_file, output_file, False)
+            ffmpeg_data = self.compressor.compressVideo(input_file, output_file, False)
+            process = ffmpeg_data.get('ffmpeg_pointer', None)
+            frame_count = ffmpeg_data.get('nb_frames', None)
+            compressed = ffmpeg_data.get('compressed', None)
+            codec = ffmpeg_data.get('codec', None)
+            if compressed:
+                bottom_text = f"[{count}/{len(self.urls)}] Compressing to {self.SIZE}MB..."
+            else:
+                bottom_text = f"[{count}/{len(self.urls)}] Re-encoding to {codec}..."
+            self.window.show_folder_btn.setIconSize(QSize(0, 0))
+            self.window.show_folder_btn.setText(bottom_text)
             if process:
                 last_time_sec = None
                 for line in process.stdout:
                     if self._stop_event.is_set():
                         process.kill()
                         return
+                    if self._skip_event.is_set():
+                        process.kill()
+                        self.compressor.inform("WARN", f"{input_file} was skipped by user.")
+                        self.compressor.videosSkipped += 1
+                        break
                     print(line, end="")
-                    for helpful_error_match in ['[error]','Cannot load', "Impossible to convert", "failed to open"]:
+                    for helpful_error_match in ['[error]','Cannot load', "Impossible to convert", "failed to open", "No device available"]:
                         if helpful_error_match in line:
                             error_message = line
                     match = re.search(r'frame=\s*(\d+)\s+fps=\s*(\d+)', line)
-                    if match:
+                    if match and frame_count > 0:
                         frame=int(match.group(1))
                         fps=int(match.group(2))
                         percent = int((frame/frame_count)*100)
@@ -185,10 +220,13 @@ class Compess(QThread):
                                     time = f"{round(time_sec / 10) * 10} seconds remain"
                                 self.window.label.setText(f"{file_name}\n{time} - {percent}%")
                                 last_time_sec = time_sec
-                self.window.label.setText(f"{file_name}\n0 seconds remain - 100%")
+                if frame_count > 0:
+                    self.window.label.setText("0 seconds remain - 100%")
                 process.wait()
                 count+=1
-                if process.returncode == 0:
+                if self._skip_event.is_set():
+                    self._skip_event.clear()
+                elif process.returncode == 0:
                     self.compressor.videosCompessed += 1
                 else:
                     self.compressor.videosFailed += 1
@@ -198,16 +236,20 @@ class Compess(QThread):
         self.finished.emit(self.compressor.log, self.compressor.videosCompessed, self.compressor.videosFailed, self.compressor.videosSkipped)
         self.compressor.clearLog()
 
+    def skip(self):
+        print("Skipping...")
+        self._skip_event.set()
+
     def stop(self):
         self._stop_event.set()
         self.wait()
 
 class SetOptions(QDialog):
-    def __init__(self, parent=None, options=None, codecs=None):
+    def __init__(self, parent=None, options=None, codecs=None, open_count=1):
         super().__init__(parent)
 
         self.save = False
-
+        self.open_count = open_count
         self.options = options
         self.codecs = codecs
         stylesheets = StyleSheets()
@@ -326,20 +368,27 @@ class SetOptions(QDialog):
             base_path = sys._MEIPASS
         else:
             base_path = os.path.dirname(__file__)
-        return os.path.join(base_path, 'etc', file)
+        full_path = os.path.join(base_path, 'etc', file)
+        if not os.path.exists(full_path):
+            raise FileNotFoundError(f"{full_path} not found.")
+        return full_path
 
     def v_codecChange(self, text):
 
         try:
             with open(self.getFilePath("known_codecs.json")) as f:
                 known_codecs = json.load(f)
+        except FileNotFoundError as e:
+            if self.open_count < 1:
+                venv_error(e)
+            known_codecs = {}
         except:
             known_codecs = {}
 
         if text in known_codecs:
-            self.setCodecSettings(known_codecs[text]['profiles'], known_codecs[text]['preset'])
+            self.setCodecSettings(known_codecs[text].get('profiles',[]), known_codecs[text].get('preset',[]))
         elif any(sub in text for sub in ['264','265','hevc']):
-            self.setCodecSettings(["baseline", "main", "high", "high10"],["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
+            self.setCodecSettings(["baseline", "main", "high", "high10", "high422", "high444"],["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
         elif "av1" in text:
             self.setCodecSettings(None,["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo"])
         elif "vp9" in text:
@@ -410,19 +459,31 @@ class DragDropWindow(QWidget):
 
         # Set the main window properties
         self.setWindowTitle("Compress2Cord")
-        self.setWindowIcon(QIcon(self.getAssetPath('icon.png')))
+        self.options_open_counter = 0
+        load_errors = ""
+        try:
+            self.setWindowIcon(QIcon(self.getAssetPath('icon.png')))
+        except FileNotFoundError as e:
+            load_errors+= f"{e}\n"
         self.setGeometry(100, 100, 400, 300)
         self.setFixedSize(600, 400)
         self.setAcceptDrops(True)  # Enable drag-and-drop
 
-        font_id = QFontDatabase.addApplicationFont(self.getAssetPath("ggsans.ttf"))
-        font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
-        custom_font = QFont(font_family)
+        try:
+            font_id = QFontDatabase.addApplicationFont(self.getAssetPath("ggsans.ttf"))
+            font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
+            custom_font = QFont(font_family)
+            self.setFont(custom_font)
+        except FileNotFoundError as e:
+            load_errors+= f"{e}\n"
 
         self.stylesheets = StyleSheets()
+        try:
+            # Check that this filed loaded in that class
+            self.getAssetPath("arrow.png")
+        except FileNotFoundError as e:
+            load_errors+= f"{e}\n"
         self.setStyleSheet(self.stylesheets.main_stylesheet)
-
-        self.setFont(custom_font)
 
         # Add a label to display the instruction
         self.label = QLabel("Drag and drop your videos here", self)
@@ -434,11 +495,19 @@ class DragDropWindow(QWidget):
         self.loading_label.setAlignment(Qt.AlignCenter)
 
         # Set up the loading animation (spinning wheel)
-        self.movie = QMovie(self.getAssetPath("loading.gif"))  # Replace with path to your loading GIF
-        self.loading_label.setMovie(self.movie)
+        try:
+            self.movie = QMovie(self.getAssetPath("loading.gif"))  # Replace with path to your loading GIF
+            self.loading_label.setMovie(self.movie)
+        except FileNotFoundError as e:
+            load_errors+= f"{e}\n"
 
         self.show_options_btn = QPushButton("")
-        self.show_options_btn.setIcon(QIcon(self.getAssetPath('settings.png')))
+        try:
+            self.show_options_btn.setIcon(QIcon(self.getAssetPath('settings.png')))
+        except FileNotFoundError as e:
+            load_errors+= f"{e}\n"
+
+
         self.show_options_btn.setFixedSize(35,35)
         self.show_options_btn.setIconSize(QSize(21, 21))
         self.show_options_btn.setStyleSheet("""
@@ -452,7 +521,10 @@ class DragDropWindow(QWidget):
         self.show_options_btn.clicked.connect(self.showOptionsWindow)
 
         self.show_folder_btn = QPushButton(" Show Output Folder  ")
-        self.show_folder_btn.setIcon(QIcon(self.getAssetPath('file.png')))
+        try:
+            self.show_folder_btn.setIcon(QIcon(self.getAssetPath('file.png')))
+        except FileNotFoundError as e:
+            load_errors+= f"{e}\n"
         self.show_folder_btn.setIconSize(QSize(21, 21))
         self.show_folder_btn.setFixedHeight(35)
         self.show_folder_btn.setStyleSheet("""
@@ -482,7 +554,31 @@ class DragDropWindow(QWidget):
         self.worker = Compess(self, self.options)
         self.worker.finished.connect(self.on_loading_complete)
         self.loading_label.setVisible(False)
+        QTimer.singleShot(2000, self.checkLibraries)
+        if load_errors != "":
+            venv_error(load_errors)
 
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            self.worker.skip()
+        else:
+            super().keyPressEvent(event)
+
+    def checkLibraries(self):
+        libraries = self.worker.compressor.checkLibraries()
+        output = ""
+        for key, value in libraries.items():
+            if not value['exists']:
+                lib_name = key
+                lib_path = value['bin']
+                output+=f"Missing '{lib_name}' Library:\n        path'{lib_path}' not found.\n\n"
+        if output != "":
+            if os.name == 'nt':
+                output+="Make sure the '_internal' folder privided with the download is updated and included in the same directory as the executable."
+            else:
+                output+="\nPlease install or update ffmpeg from your package manager.\n"
+            self.make_popup_window(None, "Libraries Missing", output, "").exec()
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         """Called when a drag enters the widget"""
@@ -503,7 +599,7 @@ class DragDropWindow(QWidget):
              # Show loading animation
             self.loading_label.setVisible(True)  # Show the loading spinner
             self.show_folder_btn.setEnabled(False)
-            self.show_folder_btn.setIconSize(QSize(0, 0))
+            #self.show_folder_btn.setIconSize(QSize(0, 0))
             #self.label.setVisible(False)
             self.movie.start()  # Start the loading animation
             self.setStyleSheet(self.stylesheets.main_stylesheet)
@@ -526,8 +622,9 @@ class DragDropWindow(QWidget):
             print(f"ERROR: subprocess didn't work {os.name}, {path}")
 
     def showOptionsWindow(self):
-        options_window = SetOptions(self, self.options, self.worker.getCodecs())
+        options_window = SetOptions(self, self.options, self.worker.getCodecs(), self.options_open_counter)
         options_window.exec_()
+        self.options_open_counter+=1
         if options_window.save == True:
             self.writeOptions()
             self.worker.setOptions(self.options)
@@ -593,7 +690,10 @@ class DragDropWindow(QWidget):
             base_path = sys._MEIPASS
         else:
             base_path = os.path.dirname(__file__)
-        return os.path.join(base_path, 'assets', file)
+        full_path = os.path.join(base_path, 'assets', file)
+        if not os.path.exists(full_path):
+            raise FileNotFoundError(f"{full_path} not found.")
+        return full_path
 
     def closeEvent(self, event):
         if self.worker.isRunning():
@@ -608,8 +708,5 @@ class SpawnFrame():
         sys.exit(app.exec_())
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = DragDropWindow()
-    window.show()
-    sys.exit(app.exec_())
+    SpawnFrame()
 
